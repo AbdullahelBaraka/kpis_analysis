@@ -1067,6 +1067,11 @@ if uploaded_file:
                                 # Group by attribute 2 for this attribute 1 value
                                 agg_df1 = sub_kpi_df_1_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': filters_1['period_label']})
                                 agg_df2 = sub_kpi_df_2_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': filters_2['period_label']})
+                                
+                                # Check if both aggregated dataframes are empty for this attribute 1 value
+                                if agg_df1.empty and agg_df2.empty:
+                                    st.info(f"No secondary attribute data found for '{kpi_name_selected}' with primary attribute '{attr1_val}' in either selected period.")
+                                    continue # Skip to the next primary attribute value
 
                                 sub_comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 2', how='outer').fillna(0)
                                 sub_comparison_table_df['Change'] = sub_comparison_table_df[filters_2['period_label']] - sub_comparison_table_df[filters_1['period_label']]
@@ -1108,7 +1113,7 @@ if uploaded_file:
                                     )
                                     st.plotly_chart(fig_sub_comp, use_container_width=True)
                                 else:
-                                    st.info(f"No data for '{kpi_name_selected}' with primary attribute '{attr1_val}' in either selected period.")
+                                    st.info(f"No data for '{kpi_name_selected}' with primary attribute '{attr1_val}' in either selected period to generate sub-comparison.")
                                 st.markdown("-----") # Sub-separator for clarity
 
 
@@ -1116,6 +1121,13 @@ if uploaded_file:
                             # Group by attribute 1
                             agg_df1 = kpi_df_1_filtered.groupby('attribute 1')['value'].agg(group_type).reset_index().rename(columns={'value': filters_1['period_label']})
                             agg_df2 = kpi_df_2_filtered.groupby('attribute 1')['value'].agg(group_type).reset_index().rename(columns={'value': filters_2['period_label']})
+                            
+                            # Check if both aggregated dataframes are empty
+                            if agg_df1.empty and agg_df2.empty:
+                                st.info(f"No attribute data (attribute 1) found for '{kpi_name_selected}' in either selected period.")
+                                st.markdown("---")
+                                continue # Skip to next KPI
+
                             comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 1', how='outer').fillna(0)
                             comparison_table_df['Change'] = comparison_table_df[filters_2['period_label']] - comparison_table_df[filters_1['period_label']]
                             comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df[filters_1['period_label']] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
@@ -1128,6 +1140,13 @@ if uploaded_file:
                             # Group by attribute 2
                             agg_df1 = kpi_df_1_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': filters_1['period_label']})
                             agg_df2 = kpi_df_2_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': filters_2['period_label']})
+
+                            # Check if both aggregated dataframes are empty
+                            if agg_df1.empty and agg_df2.empty:
+                                st.info(f"No attribute data (attribute 2) found for '{kpi_name_selected}' in either selected period.")
+                                st.markdown("---")
+                                continue # Skip to next KPI
+
                             comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 2', how='outer').fillna(0)
                             comparison_table_df['Change'] = comparison_table_df[filters_2['period_label']] - comparison_table_df[filters_1['period_label']]
                             comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df[filters_1['period_label']] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
@@ -1227,7 +1246,7 @@ if uploaded_file:
                                 )
                                 st.plotly_chart(fig_comp, use_container_width=True)
                         else:
-                            st.info(f"Could not generate comparison table for '{kpi_name_selected}' due to data structure.")
+                            st.info(f"Could not generate comparison table for '{kpi_name_selected}'. This may be due to no relevant data in the selected periods or missing attribute values for the KPI.")
                         
                         st.markdown("---") # Separator between KPI comparisons
             

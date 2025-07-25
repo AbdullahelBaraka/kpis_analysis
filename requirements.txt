@@ -4,3 +4,4 @@ plotly
 kaleido
 xhtml2pdf
 openpyxl
+reportlab

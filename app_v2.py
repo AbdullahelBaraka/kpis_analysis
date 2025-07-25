@@ -682,6 +682,10 @@ if uploaded_file:
         # Load and validate data
         df = pd.read_excel(uploaded_file)
         
+        # This line caused the error 'pandas' has no attribute 'replace'
+        # It's also redundant because the next line does the same thing more robustly.
+        # df = pd.replace(df, {'grouping criteria': {'average': 'mean'}}) 
+        
         if not validate_data(df):
             st.stop()
         
@@ -791,9 +795,8 @@ if uploaded_file:
                         if actual_kpi_names_to_display and len(actual_kpi_names_to_display) == 1 and len(displayed_departments) == 1:
                             # Scenario: Single KPI, single department selected (or resulting from filters)
                             kpi_name_selected_single = actual_kpi_names_to_display[0]
-                            # MODIFIED: Replaced "Department" with the KPI name in the heading
-                            st.markdown(f"## {kpi_name_selected_single} for {displayed_departments[0]}")
-                            st.markdown(f"### Selected KPI: {kpi_name_selected_single}") # This line is now redundant/can be removed if desired
+                            st.markdown(f"## Department: {displayed_departments[0]}")
+                            st.markdown(f"### Selected KPI: {kpi_name_selected_single}")
                             
                             kpi_df_single = report_df[report_df['kpi name'] == kpi_name_selected_single]
                             group_type_single = kpi_df_single['grouping criteria'].iloc[0]
@@ -1095,8 +1098,7 @@ if uploaded_file:
                                 if not sub_comparison_table_df.empty:
                                     kpi_data_displayed = True # Set global flag to True if anything is displayed
                                     any_sub_attribute_data_displayed_in_this_kpi = True # Set local flag to True
-                                    # Modified: Changed heading to use attribute 1's value with its column name
-                                    st.markdown(f"#### {kpi_df_specific.columns[2].replace('attribute ', '')}: {attr1_val}") 
+                                    st.markdown(f"#### {kpi_df_specific.columns[2].replace('attribute ', '')}: {attr1_val}") # Dynamically get attr1 label, removed "Attribute " prefix
                                     st.dataframe(sub_comparison_table_df, use_container_width=True, hide_index=True)
 
                                     # Create chart for this sub-comparison
@@ -1158,7 +1160,7 @@ if uploaded_file:
 
                                 # --- Create Comparison Chart for has_attr1 ---
                                 melted_df = comparison_table_df.melt(id_vars=[comparison_table_df.columns[0]], # Use the renamed attribute column
-                                                                    value_vars=[report1_col_name, report2_col_name],
+                                                                    value_vars=[filters_1['period_label'], filters_2['period_label']],
                                                                     var_name='Period', value_name='Value')
                                 fig_comp = px.bar(
                                     melted_df, 
@@ -1168,7 +1170,7 @@ if uploaded_file:
                                     barmode='group',
                                     title=f"Comparison for {kpi_name_selected} by {comparison_table_df.columns[0]}", # Modified title
                                     labels={'Value': 'KPI Value', comparison_table_df.columns[0]: comparison_table_df.columns[0]}, # Modified label
-                                    color_discrete_map={report1_col_name: 'blue', report2_col_name: 'red'},
+                                    color_discrete_map={filters_1['period_label']: 'blue', filters_2['period_label']: 'red'},
                                     template='plotly_white'
                                 )
                                 fig_comp.update_layout(
@@ -1297,7 +1299,7 @@ else:
     st.subheader("📋 Sample Data Structure")
     sample_data = pd.DataFrame({
         'kpi id': ['KPI001', 'KPI001', 'KPI002'],
-        'kpi name': ['Patient Satisfaction', 'Patient Satisfaction', 'Average Wait-Time'],
+        'kpi name': ['Patient Satisfaction', 'Patient Satisfaction', 'Average Wait Time'],
         'attribute 1': ['Outpatient', 'Inpatient', 'Emergency'],
         'attribute 2': ['Cardiology', 'Surgery', 'Triage'],
         'grouping criteria': ['average', 'average', 'average'],

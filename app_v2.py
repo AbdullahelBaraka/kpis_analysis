@@ -591,15 +591,15 @@ def generate_dashboard_html(df, filters):
 
     report_df = apply_filters(df, filters) [cite: 71]
 
-    if report_df.empty: [cite: 71]
-        html_content += "<p>No data available for selected filters.</p>" [cite: 71]
-        return html_content + "</body></html>" [cite: 71]
+    if report_df.empty: 
+        html_content += "<p>No data available for selected filters.</p>" 
+        return html_content + "</body></html>" 
 
-    # Add summary cards to HTML for PDF [cite: 71]
-    html_content += get_summary_cards_html_for_pdf(df, filters) [cite: 71]
+    # Add summary cards to HTML for PDF 
+    html_content += get_summary_cards_html_for_pdf(df, filters) 
 
 
-    for dept in sorted(report_df['department'].dropna().unique()): [cite: 72]
+    for dept in sorted(report_df['department'].dropna().unique()): 
         html_content += f"""
         <div class="department-section">
             <h2>🏢 {dept} Department</h2>
@@ -607,241 +607,240 @@ def generate_dashboard_html(df, filters):
         """
         dept_df = report_df[report_df['department'] == dept]
 
-        for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values: [cite: 72]
-            kpi_id, kpi_name, group_type = kpi_data [cite: 72]
-            kpi_df = dept_df[dept_df['kpi id'] == kpi_id] [cite: 73]
+        for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values: 
+            kpi_id, kpi_name, group_type = kpi_data 
+            kpi_df = dept_df[dept_df['kpi id'] == kpi_id] 
 
-            if group_type == "sum": [cite: 73]
-                total_value = format_value(kpi_df['value'].sum(), group_type) [cite: 73]
+            if group_type == "sum": 
+                total_value = format_value(kpi_df['value'].sum(), group_type) 
             else:
-                total_value = format_value(kpi_df['value'].mean(), group_type) [cite: 73]
+                total_value = format_value(kpi_df['value'].mean(), group_type) 
 
-            html_content += f"<h3>📊 {kpi_name} (Total: {total_value})</h3>" [cite: 73]
+            html_content += f"<h3>📊 {kpi_name} (Total: {total_value})</h3>" 
 
-            # Create pivot table [cite: 74]
-            pivot_result = create_pivot_table(kpi_df, filters['report_type'], group_type) [cite: 74]
+            # Create pivot table 
+            pivot_result = create_pivot_table(kpi_df, filters['report_type'], group_type) 
 
-            if isinstance(pivot_result, list): # Two attributes case [cite: 74]
-                for attr1, attr1_total, pivot in pivot_result: [cite: 74]
-                    html_content += f"<h4>{attr1} (Total: {attr1_total})</h4>" [cite: 74]
-                    # Convert DataFrame to HTML table string [cite: 75]
-                    html_content += pivot.to_html(index=False, float_format=lambda x: f"{int(x)}" if group_type == 'sum' else f"{x:.1f}") [cite: 75]
-                    html_content += "<br>" [cite: 75]
-            else: # Single or no attribute case [cite: 75]
-                html_content += pivot_result.to_html(index=False, float_format=lambda x: f"{int(x)}" if group_type == 'sum' else f"{x:.1f}") [cite: 76]
-                html_content += "<br>" [cite: 76]
+            if isinstance(pivot_result, list): # Two attributes case 
+                for attr1, attr1_total, pivot in pivot_result: 
+                    html_content += f"<h4>{attr1} (Total: {attr1_total})</h4>" 
+                    # Convert DataFrame to HTML table string 
+                    html_content += pivot.to_html(index=False, float_format=lambda x: f"{int(x)}" if group_type == 'sum' else f"{x:.1f}") 
+                    html_content += "<br>" 
+            else: # Single or no attribute case
+                html_content += pivot_result.to_html(index=False, float_format=lambda x: f"{int(x)}" if group_type == 'sum' else f"{x:.1f}") 
+                html_content += "<br>" 
 
-            # Create chart figure and convert to base64 image for HTML [cite: 76]
-            fig_for_pdf = create_chart(kpi_df, kpi_name, group_type) [cite: 76]
-            if fig_for_pdf: [cite: 76]
-                # Requires kaleido package [cite: 77] to export Plotly figures to image bytes [cite: 77]
-                img_bytes = fig_for_pdf.to_image(format="png", engine="kaleido") [cite: 77]
-                encoded_img = base64.b64encode(img_bytes).decode('utf-8') [cite: 77]
-                html_content += f'<img src="data:image/png;base64,{encoded_img}" class="plotly-chart-img">' [cite: 77]
+            # Create chart figure and convert to base64 image for HTML 
+            fig_for_pdf = create_chart(kpi_df, kpi_name, group_type) 
+            if fig_for_pdf: 
+                # Requires kaleido package to export Plotly figures to image bytes 
+                img_bytes = fig_for_pdf.to_image(format="png", engine="kaleido") 
+                encoded_img = base64.b64encode(img_bytes).decode('utf-8') 
+                html_content += f'<img src="data:image/png;base64,{encoded_img}" class="plotly-chart-img">' 
             
-            html_content += "<hr>" # Separator for better readability [cite: 77]
+            html_content += "<hr>" # Separator for better readability 
 
-    html_content += "</body></html>" [cite: 78]
+    html_content += "</body></html>" 
     return html_content
 
 # Main application logic
-if uploaded_file: [cite: 78]
-    try: [cite: 78]
-        # Load and validate data [cite: 78]
-        df = pd.read_excel(uploaded_file) [cite: 78]
-        df = df.replace({np.nan: None}) [cite: 78]
+if uploaded_file: 
+    try: 
+        # Load and validate data 
+        df = pd.read_excel(uploaded_file) 
+        df = df.replace({np.nan: None}) 
         
-        if not validate_data(df): [cite: 79]
+        if not validate_data(df):
             st.stop()
         
-        # Clean data [cite: 79]
-        df['value'] = pd.to_numeric(df['value'], errors='coerce').fillna(0) [cite: 79]
-        df = df.dropna(subset=['kpi id', 'kpi name', 'department']) [cite: 79]
+        # Clean data 
+        df['value'] = pd.to_numeric(df['value'], errors='coerce').fillna(0) 
+        df = df.dropna(subset=['kpi id', 'kpi name', 'department']) 
         
-        st.success(f"✅ Data loaded successfully! Found {len(df)} records with {df['kpi id'].nunique()} unique KPIs.") [cite: 80]
+        st.success(f"✅ Data loaded successfully! Found {len(df)} records with {df['kpi id'].nunique()} unique KPIs.") 
         
-        # Create tabs [cite: 80]
-        tabs = st.tabs(["📊 Dashboard", "🔍 KPI Comparison"]) [cite: 80]
+        # Create tabs
+        tabs = st.tabs(["📊 Dashboard", "🔍 KPI Comparison"]) 
         
-        with tabs[0]: [cite: 80]
-            # Dashboard tab [cite: 80]
-            st.header("📊 KPI Dashboard") [cite: 80]
+        with tabs[0]: 
+            # Dashboard tab 
+            st.header("📊 KPI Dashboard") 
             
-            # Filter controls [cite: 81]
-            col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 2]) [cite: 81]
+            # Filter controls 
+            col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 2]) 
             
-            with col1: [cite: 81]
-                report_type = st.selectbox("Report Type", ["Monthly", "Quarter", "Half Annual", "Annual"]) [cite: 81]
+            with col1: 
+                report_type = st.selectbox("Report Type", ["Monthly", "Quarter", "Half Annual", "Annual"]) 
             
-            with col2: [cite: 82]
-                selected_year = st.selectbox("Year", sorted(df['year'].dropna().unique(), reverse=True)) [cite: 82]
+            with col2: 
+                selected_year = st.selectbox("Year", sorted(df['year'].dropna().unique(), reverse=True)) 
             
-            with col5: [cite: 82]
-                departments = ["All Departments"] + sorted(df['department'].dropna().unique().tolist()) [cite: 82]
-                selected_department = st.selectbox("Department", departments) [cite: 82]
+            with col5: 
+                departments = ["All Departments"] + sorted(df['department'].dropna().unique().tolist()) 
+                selected_department = st.selectbox("Department", departments) 
             
-            # Dynamic filter based on report type [cite: 83]
-            selected_month = selected_quarter = selected_half = None [cite: 83]
+            # Dynamic filter based on report type 
+            selected_month = selected_quarter = selected_half = None 
             
-            if report_type == "Monthly": [cite: 83]
-                with col3: [cite: 83]
+            if report_type == "Monthly": 
+                with col3: 
                     available_months = sorted(df[df['year'] == selected_year]['month'].dropna().unique(),
-                                              key=lambda x: MONTH_ORDER.index(x) if x in MONTH_ORDER else 999) [cite: 84]
+                                              key=lambda x: MONTH_ORDER.index(x) if x in MONTH_ORDER else 999) 
                     selected_month = st.selectbox("Month", available_months) [cite: 84]
-            elif report_type == "Quarter": [cite: 84]
-                with col3: [cite: 85]
-                    available_quarters = sorted(df[df['year'] == selected_year]['quarter'].dropna().unique()) [cite: 85]
-                    selected_quarter = st.selectbox("Quarter", available_quarters) [cite: 85]
-            elif report_type == "Half Annual": [cite: 85]
-                with col3: [cite: 86]
-                    selected_half = st.selectbox("Half", ["H1", "H2"]) [cite: 86]
+            elif report_type == "Quarter": 
+                with col3: 
+                    available_quarters = sorted(df[df['year'] == selected_year]['quarter'].dropna().unique()) 
+                    selected_quarter = st.selectbox("Quarter", available_quarters) 
+            elif report_type == "Half Annual": 
+                with col3: 
+                    selected_half = st.selectbox("Half", ["H1", "H2"]) 
             
-            # Create filters dictionary [cite: 86]
+            # Create filters dictionary 
             filters = {
-                'report_type': report_type, [cite: 87]
-                'year': selected_year, [cite: 87]
-                'month': selected_month, [cite: 87]
-                'quarter': selected_quarter, [cite: 87]
-                'half': selected_half, [cite: 87]
-                'department': selected_department [cite: 87]
+                'report_type': report_type, 
+                'year': selected_year, 
+                'month': selected_month, 
+                'quarter': selected_quarter, 
+                'half': selected_half, 
+                'department': selected_department 
             }
+           # Use a session state variable to store if dashboard is generated
+            if 'dashboard_generated' not in st.session_state:
+                st.session_state.dashboard_generated = False
             
-            # Use a session state variable to store if dashboard is generated [cite: 88]
-            if 'dashboard_generated' not in st.session_state: [cite: 88]
-                st.session_state.dashboard_generated = False [cite: 88]
-            
-            generate_button = st.button("🔄 Generate Dashboard", type="primary") [cite: 88]
+            generate_button = st.button("🔄 Generate Dashboard", type="primary")
 
-            if generate_button or st.session_state.dashboard_generated: [cite: 88]
-                st.session_state.dashboard_generated = True # Mark as generated [cite: 89]
-                with st.spinner("Generating dashboard..."): [cite: 89]
-                    report_df = apply_filters(df, filters) [cite: 89]
+            if generate_button or st.session_state.dashboard_generated:
+                st.session_state.dashboard_generated = True # Mark as generated
+                with st.spinner("Generating dashboard..."):
+                    report_df = apply_filters(df, filters)
                     
-                    if report_df.empty: [cite: 89]
-                        st.warning("⚠️ No data available for selected filters.") [cite: 90]
-                        st.session_state.dashboard_generated = False # Reset if no data [cite: 90]
+                    if report_df.empty:
+                        st.warning("⚠️ No data available for selected filters.")
+                        st.session_state.dashboard_generated = False # Reset if no data
                     else:
-                        st.success(f"📈 Dashboard generated with {len(report_df)} records") [cite: 91]
+                        st.success(f"📈 Dashboard generated with {len(report_df)} records")
                         
                         # Display summary cards in Streamlit - COMMENTED OUT THIS CALL TO REMOVE FROM UI
                         # display_summary_cards_streamlit(df, filters) 
-                   
-                        # Department overview [cite: 92]
-                        for dept in sorted(report_df['department'].dropna().unique()): [cite: 92]
-                            with st.container(): [cite: 92]
+                    
+                        # Department overview
+                        for dept in sorted(report_df['department'].dropna().unique()):
+                            with st.container():
                                 st.markdown(f"""
                                     <div class="department-section">
-                                        <h3>🏢 {dept} Department</h3> [cite: 93]
+                                        <h3>🏢 {dept} Department</h3>
                                     </div>
-                                """, unsafe_allow_html=True) [cite: 94]
+                                """, unsafe_allow_html=True)
                                 
-                                dept_df = report_df[report_df['department'] == dept] [cite: 95]
+                                dept_df = report_df[report_df['department'] == dept]
                                 
-                                # Show KPIs for this department [cite: 96]
-                                for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values: [cite: 96]
-                                    kpi_id, kpi_name, group_type = kpi_data [cite: 96]
-                                    kpi_df = dept_df[dept_df['kpi id'] == kpi_id] [cite: 97]
+                                # Show KPIs for this department
+                                for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values:
+                                    kpi_id, kpi_name, group_type = kpi_data
+                                    kpi_df = dept_df[dept_df['kpi id'] == kpi_id]
                                     
-                                    # Calculate total [cite: 97] for display [cite: 98]
-                                    if group_type == "sum": [cite: 98]
-                                        total_value = format_value(kpi_df['value'].sum(), group_type) [cite: 98]
-                                    else: [cite: 99]
-                                        total_value = format_value(kpi_df['value'].mean(), group_type) [cite: 99]
+                                    # Calculate total for display
+                                    if group_type == "sum":
+                                        total_value = format_value(kpi_df['value'].sum(), group_type)
+                                    else:
+                                        total_value = format_value(kpi_df['value'].mean(), group_type)
                                     
-                                    with st.expander(f"📊 {kpi_name} (Total: {total_value})", expanded=True): [cite: 100]
-                                        # Create pivot table [cite: 100]
-                                        pivot_result = create_pivot_table(kpi_df, report_type, group_type) [cite: 101]
+                                    with st.expander(f"📊 {kpi_name} (Total: {total_value})", expanded=True):
+                                        # Create pivot table
+                                        pivot_result = create_pivot_table(kpi_df, report_type, group_type)
                                         
-                                        if isinstance(pivot_result, list): [cite: 101] # Two attributes case [cite: 102]
-                                            for attr1, attr1_total, pivot in pivot_result: [cite: 103]
-                                                st.markdown(f"**{attr1} (Total: {attr1_total})**") [cite: 103]
+                                        if isinstance(pivot_result, list): # Two attributes case
+                                            for attr1, attr1_total, pivot in pivot_result:
+                                                st.markdown(f"**{attr1} (Total: {attr1_total})**")
                                                 
-                                                column_config = {} [cite: 104]
-                                                for col in pivot.columns: [cite: 105]
-                                                    if col != pivot.columns[0]: [cite: 105]
-                                                        column_config[col] = st.column_config.NumberColumn( [cite: 106]
-                                                            col, format="%d" if pivot[col].dtype == 'int64' else "%.1f" [cite: 106]
-                                                        ) [cite: 107]
-                                                    else: [cite: 107]
-                                                        column_config[col] = st.column_config.TextColumn(col) [cite: 108]
+                                                column_config = {}
+                                                for col in pivot.columns:
+                                                    if col != pivot.columns[0]:
+                                                        column_config[col] = st.column_config.NumberColumn(
+                                                            col, format="%d" if pivot[col].dtype == 'int64' else "%.1f"
+                                                        )
+                                                    else:
+                                                        column_config[col] = st.column_config.TextColumn(col)
                                                 
-                                                st.dataframe( [cite: 109]
-                                                    pivot, [cite: 109]
-                                                    use_container_width=True, [cite: 110]
-                                                    hide_index=True, [cite: 111]
-                                                    column_config=column_config [cite: 111]
-                                                ) [cite: 112]
-                                        else: [cite: 112]
-                                            # Single or no attribute case [cite: 112]
-                                            column_config = {} [cite: 113]
-                                            for col in pivot_result.columns: [cite: 113]
-                                                if col != pivot_result.columns[0]: [cite: 114]
-                                                    column_config[col] = st.column_config.NumberColumn( [cite: 114]
-                                                        col, format="%d" if pivot_result[col].dtype == 'int64' else "%.1f" [cite: 115]
-                                                    ) [cite: 116]
-                                                else: [cite: 116]
-                                                    column_config[col] = st.column_config.TextColumn(col) [cite: 117]
+                                                st.dataframe(
+                                                    pivot,
+                                                    use_container_width=True,
+                                                    hide_index=True,
+                                                    column_config=column_config
+                                                )
+                                        else:
+                                            # Single or no attribute case
+                                            column_config = {}
+                                            for col in pivot_result.columns:
+                                                if col != pivot_result.columns[0]:
+                                                    column_config[col] = st.column_config.NumberColumn(
+                                                        col, format="%d" if pivot_result[col].dtype == 'int64' else "%.1f"
+                                                    )
+                                                else:
+                                                    column_config[col] = st.column_config.TextColumn(col)
                                             
-                                            st.dataframe( [cite: 117]
-                                                pivot_result, [cite: 118]
-                                                use_container_width=True, [cite: 118]
-                                                hide_index=True, [cite: 119]
-                                                column_config=column_config [cite: 119]
-                                            ) [cite: 120]
+                                            st.dataframe(
+                                                pivot_result,
+                                                use_container_width=True,
+                                                hide_index=True,
+                                                column_config=column_config
+                                            )
                                         
-                                        # Create chart for Streamlit display [cite: 121]
-                                        fig_to_display = create_chart(kpi_df, kpi_name, group_type) [cite: 121]
+                                        # Create chart for Streamlit display
+                                        fig_to_display = create_chart(kpi_df, kpi_name, group_type)
                                         
-                                        if fig_to_display: [cite: 122]
-                                            st.plotly_chart(fig_to_display, use_container_width=True) [cite: 122]
+                                        if fig_to_display:
+                                            st.plotly_chart(fig_to_display, use_container_width=True)
                         
-                        # Add a download button for PDF report [cite: 123]
-                        st.markdown("---") # Separator before download button [cite: 123]
-                        st.subheader("⬇️ Download Report") [cite: 123]
+                        # Add a download button for PDF report
+                        st.markdown("---") # Separator before download button
+                        st.subheader("⬇️ Download Report")
                         
-                        # Generate the full HTML content for the PDF report [cite: 124]
-                        pdf_html = generate_dashboard_html(df, filters) [cite: 124]
+                        # Generate the full HTML content for the PDF report
+                        pdf_html = generate_dashboard_html(df, filters)
                         
-                        # Get pdfkit configuration [cite: 125]
-                        wkhtmltopdf_config = get_pdfkit_config() [cite: 125]
+                        # Get pdfkit configuration
+                        wkhtmltopdf_config = get_pdfkit_config()
                         
-                        try: [cite: 126]
-                            # Generate PDF from HTML string [cite: 126]
-                            pdf_bytes = pdfkit.from_string(pdf_html, False, configuration=wkhtmltopdf_config) [cite: 126]
+                        try:
+                            # Generate PDF from HTML string
+                            pdf_bytes = pdfkit.from_string(pdf_html, False, configuration=wkhtmltopdf_config)
                             
-                            st.download_button( [cite: 127]
-                                label="Download Dashboard as PDF", [cite: 127]
-                                data=pdf_bytes, [cite: 127]
-                                file_name=f"Horus_Hospital_KPI_Report_{filters['year']}_{filters['report_type']}.pdf", [cite: 128]
-                                mime="application/pdf", [cite: 128]
-                                help="Download the currently displayed dashboard as a PDF file." [cite: 129]
+                            st.download_button(
+                                label="Download Dashboard as PDF",
+                                data=pdf_bytes,
+                                file_name=f"Horus_Hospital_KPI_Report_{filters['year']}_{filters['report_type']}.pdf",
+                                mime="application/pdf",
+                                help="Download the currently displayed dashboard as a PDF file."
                             )
-                        except Exception as e: [cite: 129]
-                            st.error(f"Failed to generate PDF. Please ensure wkhtmltopdf is correctly installed and configured. Error: {e}") [cite: 130]
-                            st.info("Check the console/logs for more details, especially regarding wkhtmltopdf path.") [cite: 130]
+                        except Exception as e:
+                            st.error(f"Failed to generate PDF. Please ensure wkhtmltopdf is correctly installed and configured. Error: {e}")
+                            st.info("Check the console/logs for more details, especially regarding wkhtmltopdf path.")
 
-        with tabs[1]: [cite: 130]
-            st.header("🔍 KPI Comparison") [cite: 131]
-            st.info("🚧 KPI comparison tools coming soon!") [cite: 131]
+        with tabs[1]:
+            st.header("🔍 KPI Comparison")
+            st.info("🚧 KPI comparison tools coming soon!")
             
-    except Exception as e: [cite: 131]
-        st.error(f"❌ Error processing file: {str(e)}") [cite: 131]
-        st.info("Please check your file format and try again.") [cite: 131]
+    except Exception as e:
+        st.error(f"❌ Error processing file: {str(e)}")
+        st.info("Please check your file format and try again.")
 
-else: [cite: 131]
-    # Show sample data structure only [cite: 131]
-    st.subheader("📋 Sample Data Structure") [cite: 131]
+else:
+    # Show sample data structure only
+    st.subheader("📋 Sample Data Structure")
     sample_data = pd.DataFrame({
-        'kpi id': ['KPI001', 'KPI001', 'KPI002'], [cite: 131]
-        'kpi name': ['Patient Satisfaction', 'Patient Satisfaction', 'Average Wait Time'], [cite: 132]
-        'attribute 1': ['Outpatient', 'Inpatient', 'Emergency'], [cite: 132]
-        'attribute 2': ['Cardiology', 'Surgery', 'Triage'], [cite: 132]
-        'grouping criteria': ['average', 'average', 'average'], [cite: 132]
-        'value': [4.5, 4.8, 25.5], [cite: 132]
-        'month': ['January', 'January', 'January'], [cite: 132]
-        'quarter': ['Q1', 'Q1', 'Q1'], [cite: 132]
-        'year': [2024, 2024, 2024], [cite: 132]
-        'department': ['Cardiology', 'Surgery', 'Emergency'] [cite: 132]
+        'kpi id': ['KPI001', 'KPI001', 'KPI002'],
+        'kpi name': ['Patient Satisfaction', 'Patient Satisfaction', 'Average Wait Time'],
+        'attribute 1': ['Outpatient', 'Inpatient', 'Emergency'],
+        'attribute 2': ['Cardiology', 'Surgery', 'Triage'],
+        'grouping criteria': ['average', 'average', 'average'],
+        'value': [4.5, 4.8, 25.5],
+        'month': ['January', 'January', 'January'],
+        'quarter': ['Q1', 'Q1', 'Q1'],
+        'year': [2024, 2024, 2024],
+        'department': ['Cardiology', 'Surgery', 'Emergency']
     })
     
-    st.dataframe(sample_data, use_container_width=True) [cite: 132]
+    st.dataframe(sample_data, use_container_width=True)

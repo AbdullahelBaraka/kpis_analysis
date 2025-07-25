@@ -977,43 +977,174 @@ if uploaded_file:
                 if not selected_kpi_names_comparison_global:
                     st.warning("Please select at least one KPI to compare.")
                 else:
-                    col_res1, col_res2 = st.columns(2)
+                    # Logic to iterate through selected KPIs and display comparison tables/charts
+                    for kpi_name_selected in selected_kpi_names_comparison_global:
+                        st.markdown(f"### Comparison for: {kpi_name_selected}")
 
-                    with col_res1:
-                        st.markdown("### Report 1")
-                        comp_report_df_1 = apply_filters(df, filters_1)
-                        if comp_report_df_1.empty:
-                            st.warning("No data for Report 1 based on selected filters.")
-                        else:
-                            # Iterate through globally selected KPIs for display
-                            for kpi_name in selected_kpi_names_comparison_global:
-                                kpi_comp_df = comp_report_df_1[comp_report_df_1['kpi name'] == kpi_name]
-                                if not kpi_comp_df.empty:
-                                    group_type = kpi_comp_df['grouping criteria'].iloc[0]
-                                    total_value = format_value(kpi_comp_df['value'].sum() if group_type == 'sum' else kpi_comp_df['value'].mean(), group_type)
-                                    st.markdown(f"**{kpi_name} (Total: {total_value})**")
-                                    fig = create_chart(kpi_comp_df, kpi_name, group_type)
-                                    if fig:
-                                        st.plotly_chart(fig, use_container_width=True)
-                                    st.markdown("---")
+                        # Filter data for the specific KPI for both reports
+                        kpi_df_1 = df[df['kpi name'] == kpi_name_selected]
+                        kpi_df_2 = df[df['kpi name'] == kpi_name_selected]
 
-                    with col_res2:
-                        st.markdown("### Report 2")
-                        comp_report_df_2 = apply_filters(df, filters_2)
-                        if comp_report_df_2.empty:
-                            st.warning("No data for Report 2 based on selected filters.")
+                        # Apply filters for report 1 and report 2 to these KPI-specific dataframes
+                        kpi_df_1_filtered = apply_filters(kpi_df_1, filters_1)
+                        kpi_df_2_filtered = apply_filters(kpi_df_2, filters_2)
+
+                        if kpi_df_1_filtered.empty and kpi_df_2_filtered.empty:
+                            st.info(f"No data for '{kpi_name_selected}' in either selected period.")
+                            st.markdown("---")
+                            continue # Skip to next KPI if no data
+
+                        # Determine grouping criteria for the KPI (should be consistent)
+                        group_type = 'sum' # Default to sum
+                        if not kpi_df_1_filtered.empty:
+                            group_type = kpi_df_1_filtered['grouping criteria'].iloc[0]
+                        elif not kpi_df_2_filtered.empty:
+                            group_type = kpi_df_2_filtered['grouping criteria'].iloc[0]
+
+                        # --- Build Comparison Table Data ---
+                        comparison_table_df = pd.DataFrame()
+
+                        has_attr1 = kpi_df_1_filtered['attribute 1'].notna().any() or kpi_df_2_filtered['attribute 1'].notna().any()
+                        has_attr2 = kpi_df_1_filtered['attribute 2'].notna().any() or kpi_df_2_filtered['attribute 2'].notna().any()
+
+                        if has_attr1 and has_attr2:
+                            # Group by both attributes
+                            agg_df1 = kpi_df_1_filtered.groupby(['attribute 1', 'attribute 2'])['value'].agg(group_type).reset_index().rename(columns={'value': 'Report 1 Value'})
+                            agg_df2 = kpi_df_2_filtered.groupby(['attribute 1', 'attribute 2'])['value'].agg(group_type).reset_index().rename(columns={'value': 'Report 2 Value'})
+                            comparison_table_df = pd.merge(agg_df1, agg_df2, on=['attribute 1', 'attribute 2'], how='outer').fillna(0)
+                            comparison_table_df['Change'] = comparison_table_df['Report 2 Value'] - comparison_table_df['Report 1 Value']
+                            comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df['Report 1 Value'] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                            # Add KPI Name column for chart
+                            comparison_table_df['KPI Name'] = kpi_name_selected
+
+                        elif has_attr1:
+                            # Group by attribute 1
+                            agg_df1 = kpi_df_1_filtered.groupby('attribute 1')['value'].agg(group_type).reset_index().rename(columns={'value': 'Report 1 Value'})
+                            agg_df2 = kpi_df_2_filtered.groupby('attribute 1')['value'].agg(group_type).reset_index().rename(columns={'value': 'Report 2 Value'})
+                            comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 1', how='outer').fillna(0)
+                            comparison_table_df['Change'] = comparison_table_df['Report 2 Value'] - comparison_table_df['Report 1 Value']
+                            comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df['Report 1 Value'] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                            # Add KPI Name column for chart
+                            comparison_table_df['KPI Name'] = kpi_name_selected
+
+                        elif has_attr2:
+                            # Group by attribute 2
+                            agg_df1 = kpi_df_1_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': 'Report 1 Value'})
+                            agg_df2 = kpi_df_2_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': 'Report 2 Value'})
+                            comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 2', how='outer').fillna(0)
+                            comparison_table_df['Change'] = comparison_table_df['Report 2 Value'] - comparison_table_df['Report 1 Value']
+                            comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df['Report 1 Value'] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                            # Add KPI Name column for chart
+                            comparison_table_df['KPI Name'] = kpi_name_selected
+
                         else:
-                            # Iterate through globally selected KPIs for display
-                            for kpi_name in selected_kpi_names_comparison_global:
-                                kpi_comp_df = comp_report_df_2[comp_report_df_2['kpi name'] == kpi_name]
-                                if not kpi_comp_df.empty:
-                                    group_type = kpi_comp_df['grouping criteria'].iloc[0]
-                                    total_value = format_value(kpi_comp_df['value'].sum() if group_type == 'sum' else kpi_comp_df['value'].mean(), group_type)
-                                    st.markdown(f"**{kpi_name} (Total: {total_value})**")
-                                    fig = create_chart(kpi_comp_df, kpi_name, group_type)
-                                    if fig:
-                                        st.plotly_chart(fig, use_container_width=True)
-                                    st.markdown("---")
+                            # No attributes, just aggregate the total KPI value for each period
+                            total_val_1 = kpi_df_1_filtered['value'].agg(group_type) if not kpi_df_1_filtered.empty else 0
+                            total_val_2 = kpi_df_2_filtered['value'].agg(group_type) if not kpi_df_2_filtered.empty else 0
+                            
+                            change = total_val_2 - total_val_1
+                            pct_change = (change / total_val_1 * 100) if total_val_1 != 0 else (0 if change == 0 else np.nan)
+                            pct_change_str = f"{pct_change:.1f}%" if pd.notna(pct_change) else "N/A"
+
+                            comparison_table_df = pd.DataFrame({
+                                'KPI': [kpi_name_selected],
+                                'Report 1 Value': [format_value(total_val_1, group_type)],
+                                'Report 2 Value': [format_value(total_val_2, group_type)],
+                                'Change': [format_value(change, group_type)],
+                                '% Change': [pct_change_str]
+                            })
+                        
+                        # Format numerical columns in the comparison table
+                        for col in ['Report 1 Value', 'Report 2 Value', 'Change']:
+                            if col in comparison_table_df.columns:
+                                comparison_table_df[col] = comparison_table_df[col].apply(lambda x: format_value(x, group_type))
+
+
+                        if not comparison_table_df.empty:
+                            st.markdown(f"**KPI: {kpi_name_selected}**")
+                            st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
+
+                            # --- Create Comparison Chart ---
+                            # Reshape for Plotly: 'Report 1 Value', 'Report 2 Value' need to be in one column 'Value'
+                            # and a new column 'Period' to distinguish them.
+                            
+                            if has_attr1 and has_attr2:
+                                melted_df = comparison_table_df.melt(id_vars=['attribute 1', 'attribute 2', 'KPI Name'], 
+                                                                    value_vars=['Report 1 Value', 'Report 2 Value'],
+                                                                    var_name='Period', value_name='Value')
+                                fig_comp = px.bar(
+                                    melted_df, 
+                                    x='attribute 1', 
+                                    y='Value', 
+                                    color='Period', 
+                                    barmode='group',
+                                    facet_col='attribute 2', # Facet by secondary attribute
+                                    title=f"Comparison for {kpi_name_selected} by Attributes",
+                                    labels={'Value': 'KPI Value', 'attribute 1': 'Primary Attribute'},
+                                    color_discrete_map={'Report 1 Value': 'blue', 'Report 2 Value': 'red'},
+                                    template='plotly_white'
+                                )
+                                fig_comp.update_layout(height=500) # Adjust height for facets
+                                fig_comp.for_each_annotation(lambda a: a.update(text=a.text.replace("attribute 2=", "Secondary Attribute: ")))
+
+
+                            elif has_attr1:
+                                melted_df = comparison_table_df.melt(id_vars=['attribute 1', 'KPI Name'], 
+                                                                    value_vars=['Report 1 Value', 'Report 2 Value'],
+                                                                    var_name='Period', value_name='Value')
+                                fig_comp = px.bar(
+                                    melted_df, 
+                                    x='attribute 1', 
+                                    y='Value', 
+                                    color='Period', 
+                                    barmode='group',
+                                    title=f"Comparison for {kpi_name_selected} by Primary Attribute",
+                                    labels={'Value': 'KPI Value', 'attribute 1': 'Primary Attribute'},
+                                    color_discrete_map={'Report 1 Value': 'blue', 'Report 2 Value': 'red'},
+                                    template='plotly_white'
+                                )
+                            elif has_attr2:
+                                melted_df = comparison_table_df.melt(id_vars=['attribute 2', 'KPI Name'], 
+                                                                    value_vars=['Report 1 Value', 'Report 2 Value'],
+                                                                    var_name='Period', value_name='Value')
+                                fig_comp = px.bar(
+                                    melted_df, 
+                                    x='attribute 2', 
+                                    y='Value', 
+                                    color='Period', 
+                                    barmode='group',
+                                    title=f"Comparison for {kpi_name_selected} by Secondary Attribute",
+                                    labels={'Value': 'KPI Value', 'attribute 2': 'Secondary Attribute'},
+                                    color_discrete_map={'Report 1 Value': 'blue', 'Report 2 Value': 'red'},
+                                    template='plotly_white'
+                                )
+                            else: # No attributes - simple bar chart for overall KPI comparison
+                                melted_df = comparison_table_df.melt(id_vars=['KPI'], 
+                                                                    value_vars=['Report 1 Value', 'Report 2 Value'],
+                                                                    var_name='Period', value_name='Value')
+                                fig_comp = px.bar(
+                                    melted_df, 
+                                    x='Period', 
+                                    y='Value', 
+                                    color='Period',
+                                    title=f"Overall Comparison for {kpi_name_selected}",
+                                    labels={'Value': 'KPI Value'},
+                                    color_discrete_map={'Report 1 Value': 'blue', 'Report 2 Value': 'red'},
+                                    template='plotly_white'
+                                )
+
+                            if fig_comp:
+                                fig_comp.update_layout(
+                                    margin=dict(l=0, r=0, t=50, b=0),
+                                    height=400,
+                                    showlegend=True,
+                                    font=dict(size=12, color="black")
+                                )
+                                st.plotly_chart(fig_comp, use_container_width=True)
+                        else:
+                            st.info(f"Could not generate comparison table for '{kpi_name_selected}' due to data structure.")
+                        
+                        st.markdown("---") # Separator between KPI comparisons
             
     except Exception as e:
         st.error(f"❌ Error processing file: {str(e)}")

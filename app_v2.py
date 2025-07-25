@@ -608,8 +608,8 @@ def generate_dashboard_html(df, filters):
         html_content += "<p>No data available for selected filters.</p>"
         return html_content + "</body></html>"
 
-    # Add summary cards to HTML for PDF
-    html_content += get_summary_cards_html_for_pdf(df, filters)
+    # Removed the call to add summary cards to HTML for PDF
+    # html_content += get_summary_cards_html_for_pdf(df, filters)
 
 
     for dept in sorted(report_df['department'].dropna().unique()):

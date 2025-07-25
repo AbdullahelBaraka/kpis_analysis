@@ -690,8 +690,9 @@ if uploaded_file:
             # Dashboard tab
             st.header("📊 KPI Dashboard")
             
-            # Filter controls
-            col1, col2, col3, col4, col5 = st.columns([1.5, 1, 3, 1, 1.5]) # Adjusted column widths
+            # Filter controls - Adjusted column widths for new filter arrangement
+            # [Report Type, Year, Dynamic Period (Month/Quarter/Half), KPI Name, Department]
+            col1, col2, col3, col4, col5 = st.columns([1.5, 1, 1.5, 2.5, 1.5]) 
             
             with col1:
                 report_type = st.selectbox("Report Type", ["Monthly", "Quarter", "Half Annual", "Annual"])
@@ -699,31 +700,30 @@ if uploaded_file:
             with col2:
                 selected_year = st.selectbox("Year", sorted(df['year'].dropna().unique(), reverse=True))
             
-            # KPI Name filter - NEW
-            with col3: # Using col3 for KPI Name filter, as month/quarter/half are dynamic
+            # Dynamic filter based on report type (moved to col3)
+            selected_month = selected_quarter = selected_half = None
+            
+            if report_type == "Monthly":
+                with col3: # Moved to col3
+                    available_months = sorted(df[df['year'] == selected_year]['month'].dropna().unique(),
+                                              key=lambda x: MONTH_ORDER.index(x) if x in MONTH_ORDER else 999)
+                    selected_month = st.selectbox("Month", available_months)
+            elif report_type == "Quarter":
+                with col3: # Moved to col3
+                    available_quarters = sorted(df[df['year'] == selected_year]['quarter'].dropna().unique())
+                    selected_quarter = st.selectbox("Quarter", available_quarters)
+            elif report_type == "Half Annual":
+                with col3: # Moved to col3
+                    selected_half = st.selectbox("Half", ["H1", "H2"])
+
+            # KPI Name filter - NEW (moved to col4)
+            with col4: # Moved to col4
                 all_kpi_names = ["All KPIs"] + sorted(df['kpi name'].dropna().unique().tolist())
                 selected_kpi_names = st.multiselect("KPI Name", all_kpi_names, default="All KPIs")
             
             with col5:
                 departments = ["All Departments"] + sorted(df['department'].dropna().unique().tolist())
                 selected_department = st.selectbox("Department", departments)
-            
-            # Dynamic filter based on report type
-            selected_month = selected_quarter = selected_half = None
-            
-            # NOTE: Adjusted column for month/quarter/half to col4 as col3 is now KPI Name filter
-            if report_type == "Monthly":
-                with col4: 
-                    available_months = sorted(df[df['year'] == selected_year]['month'].dropna().unique(),
-                                              key=lambda x: MONTH_ORDER.index(x) if x in MONTH_ORDER else 999)
-                    selected_month = st.selectbox("Month", available_months)
-            elif report_type == "Quarter":
-                with col4: 
-                    available_quarters = sorted(df[df['year'] == selected_year]['quarter'].dropna().unique())
-                    selected_quarter = st.selectbox("Quarter", available_quarters)
-            elif report_type == "Half Annual":
-                with col4: 
-                    selected_half = st.selectbox("Half", ["H1", "H2"])
             
             # Create filters dictionary
             filters = {
@@ -828,7 +828,7 @@ if uploaded_file:
                                     
                                     for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values:
                                         kpi_id, kpi_name, group_type = kpi_data
-                                        kpi_df = dept_df[kpi_df['kpi id'] == kpi_id] # This line was causing an issue; fixed it now.
+                                        kpi_df = dept_df[dept_df['kpi id'] == kpi_id] # Fixed: ensure dept_df is used for filtering
                                         
                                         if group_type == "sum":
                                             total_value = format_value(kpi_df['value'].sum(), group_type)

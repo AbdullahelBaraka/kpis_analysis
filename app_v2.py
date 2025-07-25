@@ -959,7 +959,7 @@ if uploaded_file:
                     selected_half_2 = st.selectbox("Half 2", ["H1", "H2"], key="half_2")
                 
                 filters_2 = {
-                    'report_type': report_2,
+                    'report_type': report_type_2, # Corrected typo here
                     'year': selected_year_2,
                     'month': selected_month_2,
                     'quarter': selected_quarter_2,
@@ -985,6 +985,7 @@ if uploaded_file:
                         if comp_report_df_1.empty:
                             st.warning("No data for Report 1 based on selected filters.")
                         else:
+                            # Iterate through globally selected KPIs for display
                             for kpi_name in selected_kpi_names_comparison_global:
                                 kpi_comp_df = comp_report_df_1[comp_report_df_1['kpi name'] == kpi_name]
                                 if not kpi_comp_df.empty:
@@ -1002,8 +1003,9 @@ if uploaded_file:
                         if comp_report_df_2.empty:
                             st.warning("No data for Report 2 based on selected filters.")
                         else:
+                            # Iterate through globally selected KPIs for display
                             for kpi_name in selected_kpi_names_comparison_global:
-                                kpi_comp_df = comp_report_df_2[comp_comp_df_2['kpi name'] == kpi_name]
+                                kpi_comp_df = comp_report_df_2[comp_report_df_2['kpi name'] == kpi_name]
                                 if not kpi_comp_df.empty:
                                     group_type = kpi_comp_df['grouping criteria'].iloc[0]
                                     total_value = format_value(kpi_comp_df['value'].sum() if group_type == 'sum' else kpi_comp_df['value'].mean(), group_type)

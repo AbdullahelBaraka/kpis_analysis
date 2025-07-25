@@ -191,65 +191,6 @@ def format_value(value, group_type):
         return 0
     return int(value) if group_type == 'sum' else round(float(value), 1)
 
-def create_summary_cards(df, filters):
-    """Create KPI summary cards and return their HTML for PDF, also display in Streamlit"""
-    filtered_df = apply_filters(df, filters)
-    
-    if filtered_df.empty:
-        return "" # Return empty string for HTML
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    # HTML for summary cards (for PDF generation)
-    summary_html_for_pdf = ""
-    
-    total_kpis = filtered_df['kpi id'].nunique()
-    summary_html_for_pdf += f"""
-        <div class="kpi-card">
-            <h4>📊 Total KPIs</h4>
-            <div class="kpi-value">{total_kpis}</div>
-        </div>
-    """
-    
-    total_departments = filtered_df['department'].nunique()
-    summary_html_for_pdf += f"""
-        <div class="kpi-card">
-            <h4>🏢 Departments</h4>
-            <div class="kpi-value">{total_departments}</div>
-        </div>
-    """
-    
-    avg_value = filtered_df['value'].mean()
-    summary_html_for_pdf += f"""
-        <div class="kpi-card">
-            <h4>📈 Avg Value</h4>
-            <div class="kpi-value">{format_value(avg_value, 'average')}</div>
-        </div>
-    """
-    
-    total_records = len(filtered_df)
-    summary_html_for_pdf += f"""
-        <div class="kpi-card">
-            <h4>📋 Records</h4>
-            <div class="kpi-value">{total_records}</div>
-        </div>
-    """
-    
-    # Display in Streamlit (using the same content structure)
-    # Note: st.columns places elements in separate columns. The HTML for PDF needs to be a single block.
-    with col1:
-        st.markdown(summary_html_for_pdf.split("</div>")[0] + "</div>", unsafe_allow_html=True)
-    with col2:
-        st.markdown(summary_html_for_pdf.split("</div>")[1].split("</div>")[0] + "</div>", unsafe_allow_html=True)
-    with col3:
-        st.markdown(summary_html_for_pdf.split("</div>")[2].split("</div>")[0] + "</div>", unsafe_allow_html=True)
-    with col4:
-        st.markdown(summary_html_for_opened_pdf.split("</div>")[3].split("</div>")[0] + "</div>", unsafe_allow_html=True)
-
-    # Return the HTML string for PDF generation, wrapped in a flex container for side-by-side display
-    return f"""<div style="display:flex; justify-content:space-around; flex-wrap:wrap;">{summary_html_for_pdf}</div>"""
-
-
 def apply_filters(df, filters):
     """Apply selected filters to dataframe"""
     filtered_df = df.copy()
@@ -275,6 +216,95 @@ def apply_filters(df, filters):
         filtered_df = filtered_df[filtered_df['department'] == filters['department']]
     
     return filtered_df
+
+def display_summary_cards_streamlit(df, filters):
+    """Displays KPI summary cards in Streamlit columns."""
+    filtered_df = apply_filters(df, filters)
+    
+    if filtered_df.empty:
+        return # Nothing to display
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    total_kpis = filtered_df['kpi id'].nunique()
+    with col1:
+        st.markdown(f"""
+            <div class="kpi-card">
+                <h4>📊 Total KPIs</h4>
+                <div class="kpi-value">{total_kpis}</div>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    total_departments = filtered_df['department'].nunique()
+    with col2:
+        st.markdown(f"""
+            <div class="kpi-card">
+                <h4>🏢 Departments</h4>
+                <div class="kpi-value">{total_departments}</div>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    avg_value = filtered_df['value'].mean()
+    with col3:
+        st.markdown(f"""
+            <div class="kpi-card">
+                <h4>📈 Avg Value</h4>
+                <div class="kpi-value">{format_value(avg_value, 'average')}</div>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    total_records = len(filtered_df)
+    with col4:
+        st.markdown(f"""
+            <div class="kpi-card">
+                <h4>📋 Records</h4>
+                <div class="kpi-value">{total_records}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+def get_summary_cards_html_for_pdf(df, filters):
+    """Generates HTML string for KPI summary cards, suitable for PDF embedding."""
+    filtered_df = apply_filters(df, filters)
+    
+    if filtered_df.empty:
+        return ""
+    
+    summary_html = ""
+    
+    total_kpis = filtered_df['kpi id'].nunique()
+    summary_html += f"""
+        <div class="kpi-card">
+            <h4>📊 Total KPIs</h4>
+            <div class="kpi-value">{total_kpis}</div>
+        </div>
+    """
+    
+    total_departments = filtered_df['department'].nunique()
+    summary_html += f"""
+        <div class="kpi-card">
+            <h4>🏢 Departments</h4>
+            <div class="kpi-value">{total_departments}</div>
+        </div>
+    """
+    
+    avg_value = filtered_df['value'].mean()
+    summary_html += f"""
+        <div class="kpi-card">
+            <h4>📈 Avg Value</h4>
+            <div class="kpi-value">{format_value(avg_value, 'average')}</div>
+        </div>
+    """
+    
+    total_records = len(filtered_df)
+    summary_html += f"""
+        <div class="kpi-card">
+            <h4>📋 Records</h4>
+            <div class="kpi-value">{total_records}</div>
+        </div>
+    """
+    # Wrap in a flex container for PDF layout
+    return f"""<div style="display:flex; justify-content:space-around; flex-wrap:wrap; margin-bottom: 2rem;">{summary_html}</div>"""
+
 
 def create_pivot_table(kpi_df, report_type, group_type):
     """Create pivot table for KPI data"""
@@ -559,37 +589,8 @@ def generate_dashboard_html(df, filters):
         html_content += "<p>No data available for selected filters.</p>"
         return html_content + "</body></html>"
 
-    # Add summary cards to HTML
-    summary_html_for_pdf = ""
-    total_kpis_pdf = report_df['kpi id'].nunique()
-    summary_html_for_pdf += f"""
-        <div class="kpi-card">
-            <h4>📊 Total KPIs</h4>
-            <div class="kpi-value">{total_kpis_pdf}</div>
-        </div>
-    """
-    total_departments_pdf = report_df['department'].nunique()
-    summary_html_for_pdf += f"""
-        <div class="kpi-card">
-            <h4>🏢 Departments</h4>
-            <div class="kpi-value">{total_departments_pdf}</div>
-        </div>
-    """
-    avg_value_pdf = report_df['value'].mean()
-    summary_html_for_pdf += f"""
-        <div class="kpi-card">
-            <h4>📈 Avg Value</h4>
-            <div class="kpi-value">{format_value(avg_value_pdf, 'average')}</div>
-        </div>
-    """
-    total_records_pdf = len(report_df)
-    summary_html_for_pdf += f"""
-        <div class="kpi-card">
-            <h4>📋 Records</h4>
-            <div class="kpi-value">{total_records_pdf}</div>
-        </div>
-    """
-    html_content += f"""<div style="display:flex; flex-wrap:wrap; justify-content:space-around; margin-bottom: 2rem;">{summary_html_for_pdf}</div>"""
+    # Add summary cards to HTML for PDF
+    html_content += get_summary_cards_html_for_pdf(df, filters)
 
 
     for dept in sorted(report_df['department'].dropna().unique()):
@@ -717,8 +718,7 @@ if uploaded_file:
                         st.success(f"📈 Dashboard generated with {len(report_df)} records")
                         
                         # Display summary cards in Streamlit
-                        # Call create_summary_cards to display cards and get HTML for PDF
-                        summary_html_for_opened_pdf = create_summary_cards(df, filters) 
+                        display_summary_cards_streamlit(df, filters) 
                         
                         # Department overview
                         for dept in sorted(report_df['department'].dropna().unique()):
@@ -784,7 +784,7 @@ if uploaded_file:
                                                 column_config=column_config
                                             )
                                         
-                                        # Create chart for Streamlit display (using the modified create_chart)
+                                        # Create chart for Streamlit display
                                         fig_to_display = create_chart(kpi_df, kpi_name, group_type)
                                         
                                         if fig_to_display:
@@ -840,3 +840,5 @@ else:
     })
     
     st.dataframe(sample_data, use_container_width=True)
+
+```

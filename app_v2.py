@@ -1,133 +1,193 @@
+# --- Horus Hospital KPI Dashboard with PDF Export ---
+
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import base64
 import io
 from xhtml2pdf import pisa
 from datetime import datetime
 
-# ---------- KPI Data Loading & Preprocessing ----------
+# Page Config
+st.set_page_config(page_title="Horus Hospital KPIs", layout="wide")
+
+# --- Styling ---
+st.markdown("""
+    <style>
+        .main-header {
+            background: linear-gradient(90deg, #1f77b4, #2ca02c);
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            color: white;
+            text-align: center;
+        }
+        .kpi-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 0.5rem 0;
+            color: white;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- Header ---
+st.markdown("""
+    <div class="main-header">
+        <h1>🏥 Horus Hospital KPI Dashboard</h1>
+        <p>Comprehensive Healthcare Performance Analytics</p>
+    </div>
+""", unsafe_allow_html=True)
+
+# --- File Upload ---
+st.sidebar.header("📁 Upload KPI Data")
+uploaded_file = st.sidebar.file_uploader("Upload Excel File", type=["xlsx"])
+
+# --- Load Data ---
 @st.cache_data
-def load_data(uploaded_file):
-    if uploaded_file is not None:
-        df = pd.read_excel(uploaded_file)
-        df.columns = [col.strip() for col in df.columns]  # Normalize column names
-        return df
+
+def load_data(file):
+    if file:
+        df = pd.read_excel(file)
+        df.columns = [c.strip().lower() for c in df.columns]
+        return df.replace({np.nan: None})
     return pd.DataFrame()
 
-def filter_data(df, filters):
-    for key, value in filters.items():
-        if value and value != "All" and key in df.columns:
-            df = df[df[key] == value]
+# --- Validate Data ---
+def validate_data(df):
+    required = ['kpi id', 'kpi name', 'attribute 1', 'attribute 2', 'grouping criteria',
+                'value', 'month', 'quarter', 'year', 'department']
+    missing = [col for col in required if col not in df.columns]
+    if missing:
+        st.error(f"Missing columns: {', '.join(missing)}")
+        return False
+    return pd.api.types.is_numeric_dtype(df['value'])
+
+# --- Utility Functions ---
+MONTH_ORDER = ["January", "February", "March", "April", "May", "June", 
+               "July", "August", "September", "October", "November", "December"]
+
+def apply_filters(df, year, month, quarter, half, report_type, dept):
+    df = df[df['year'] == year]
+    if report_type == "Monthly" and month:
+        df = df[df['month'] == month]
+    elif report_type == "Quarter" and quarter:
+        quarters = {
+            'Q1': ['January', 'February', 'March'],
+            'Q2': ['April', 'May', 'June'],
+            'Q3': ['July', 'August', 'September'],
+            'Q4': ['October', 'November', 'December']
+        }
+        df = df[df['month'].isin(quarters.get(quarter, []))]
+    elif report_type == "Half Annual" and half:
+        df = df[df['month'].isin(MONTH_ORDER[:6] if half == 'H1' else MONTH_ORDER[6:])]
+    if dept and dept != "All":
+        df = df[df['department'] == dept]
     return df
 
-# ---------- Chart Generation ----------
+def format_value(val, group):
+    return int(val) if group == 'sum' else round(float(val), 1)
+
 def generate_chart(df):
-    required_cols = ["Department", "KPI Value", "KPI Name"]
-    if df.empty or not all(col in df.columns for col in required_cols):
+    if df.empty:
         return None
-    fig = px.bar(df, x="Department", y="KPI Value", color="KPI Name", barmode="group")
-    fig.update_layout(title="KPI Report")
+    chart_df = df.groupby(['department', 'kpi name'])['value'].sum().reset_index()
+    fig = px.bar(chart_df, x='department', y='value', color='kpi name', barmode='group')
+    fig.update_layout(title="KPI Summary by Department")
     return fig
 
-# ---------- Chart to Base64 ----------
+# --- PDF Generation ---
 def plotly_fig_to_base64(fig):
-    img_bytes = fig.to_image(format="png", width=900, height=500, engine="kaleido")
-    return base64.b64encode(img_bytes).decode("utf-8")
+    try:
+        img_bytes = fig.to_image(format="png", engine="kaleido")
+        return base64.b64encode(img_bytes).decode("utf-8")
+    except:
+        return ""
 
-# ---------- HTML to PDF using xhtml2pdf ----------
 def convert_html_to_pdf(source_html):
     pdf_buffer = io.BytesIO()
-    pisa_status = pisa.CreatePDF(io.StringIO(source_html), dest=pdf_buffer)
-    if pisa_status.err:
-        return None
+    pisa.CreatePDF(io.StringIO(source_html), dest=pdf_buffer)
     return pdf_buffer.getvalue()
 
-# ---------- Generate Report HTML ----------
-def generate_html_report(df, filters, chart=None):
+def generate_html_report(df, chart):
     html = f"""
-    <html>
-    <head>
-        <style>
-            body {{ font-family: Arial; }}
-            h1 {{ text-align: center; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
-            th, td {{ border: 1px solid #333; padding: 8px; text-align: left; }}
-            th {{ background-color: #f2f2f2; }}
-        </style>
-    </head>
-    <body>
-        <h1>KPI Report</h1>
-        <p><strong>Date:</strong> {datetime.now().strftime('%Y-%m-%d')}</p>
-        <p><strong>Filters Applied:</strong> {', '.join([f'{k}: {v}' for k, v in filters.items() if v])}</p>
+    <html><body><h1>Horus KPI Report - {datetime.now().strftime('%Y-%m-%d')}</h1>
     """
     if chart:
-        try:
-            chart_base64 = plotly_fig_to_base64(chart)
-            html += f'<img src="data:image/png;base64,{chart_base64}" style="width:100%; max-height:500px;"/>'
-        except Exception as e:
-            html += f'<p><i>Chart rendering failed: {str(e)}</i></p>'
+        img = plotly_fig_to_base64(chart)
+        html += f'<img src="data:image/png;base64,{img}" width="800"/>'
 
-    html += "<table><thead><tr>"
-    for col in df.columns:
-        html += f"<th>{col}</th>"
-    html += "</tr></thead><tbody>"
+    html += "<table border='1' cellspacing='0' cellpadding='5'>"
+    html += "<tr>" + "".join(f"<th>{col}</th>" for col in df.columns) + "</tr>"
     for _, row in df.iterrows():
         html += "<tr>" + "".join(f"<td>{val}</td>" for val in row) + "</tr>"
-    html += "</tbody></table></body></html>"
+    html += "</table></body></html>"
     return html
 
-# ---------- Download Button ----------
-def download_pdf_button(df, filters):
+def download_pdf_button(df):
     chart = generate_chart(df)
-    html_str = generate_html_report(df, filters, chart)
-    pdf = convert_html_to_pdf(html_str)
-    if pdf:
-        b64 = base64.b64encode(pdf).decode()
-        href = f'<a href="data:application/pdf;base64,{b64}" download="kpi_report.pdf">📄 Download PDF Report</a>'
-        st.markdown(href, unsafe_allow_html=True)
-    else:
-        st.error("Failed to generate PDF.")
+    html = generate_html_report(df, chart)
+    pdf = convert_html_to_pdf(html)
+    b64 = base64.b64encode(pdf).decode()
+    href = f'<a href="data:application/pdf;base64,{b64}" download="kpi_report.pdf">📄 Download PDF</a>'
+    st.markdown(href, unsafe_allow_html=True)
 
-# ---------- Streamlit App ----------
-st.set_page_config(page_title="KPI Dashboard", layout="wide")
-st.title("📊 KPI Dashboard")
-
-uploaded_file = st.sidebar.file_uploader("Upload KPI Excel File", type=["xlsx"])
+# --- Main App ---
 df = load_data(uploaded_file)
 
-if df.empty:
-    st.warning("Please upload a valid KPI Excel file.")
-    st.stop()
+if not df.empty and validate_data(df):
+    st.success("✅ Data validated successfully")
 
-# Validate required columns
-required_columns = ["Department", "KPI Name", "KPI Value"]
-missing_cols = [col for col in required_columns if col not in df.columns]
-if missing_cols:
-    st.error(f"Missing required columns in data: {', '.join(missing_cols)}. Found columns: {', '.join(df.columns)}")
-    st.stop()
+    st.sidebar.header("🔎 Filters")
+    report_type = st.sidebar.selectbox("Report Type", ["Monthly", "Quarter", "Half Annual", "Annual"])
+    year = st.sidebar.selectbox("Year", sorted(df['year'].dropna().unique(), reverse=True))
+    department = st.sidebar.selectbox("Department", ["All"] + sorted(df['department'].dropna().unique()))
 
-# Filters (only after validation)
-departments = ["All"] + sorted(df["Department"].dropna().unique())
-kpis = ["All"] + sorted(df["KPI Name"].dropna().unique())
+    month = quarter = half = None
+    if report_type == "Monthly":
+        month = st.sidebar.selectbox("Month", MONTH_ORDER)
+    elif report_type == "Quarter":
+        quarter = st.sidebar.selectbox("Quarter", ["Q1", "Q2", "Q3", "Q4"])
+    elif report_type == "Half Annual":
+        half = st.sidebar.selectbox("Half", ["H1", "H2"])
 
-selected_department = st.sidebar.selectbox("Department", departments)
-selected_kpi = st.sidebar.selectbox("KPI Name", kpis)
+    filtered_df = apply_filters(df, year, month, quarter, half, report_type, department)
 
-filters = {
-    "Department": None if selected_department == "All" else selected_department,
-    "KPI Name": None if selected_kpi == "All" else selected_kpi
-}
+    # KPI Cards
+    if not filtered_df.empty:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"""<div class='kpi-card'><h4>Total KPIs</h4><div class='kpi-value'>{filtered_df['kpi id'].nunique()}</div></div>""", unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"""<div class='kpi-card'><h4>Departments</h4><div class='kpi-value'>{filtered_df['department'].nunique()}</div></div>""", unsafe_allow_html=True)
+        with col3:
+            avg_val = filtered_df['value'].mean()
+            st.markdown(f"""<div class='kpi-card'><h4>Average Value</h4><div class='kpi-value'>{format_value(avg_val, 'average')}</div></div>""", unsafe_allow_html=True)
 
-filtered_df = filter_data(df, filters)
+        st.divider()
+        st.subheader("📊 KPI Chart")
+        fig = generate_chart(filtered_df)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
 
-# Chart and Table
-chart = generate_chart(filtered_df)
-if chart:
-    st.plotly_chart(chart, use_container_width=True)
+        st.subheader("📋 KPI Data")
+        st.dataframe(filtered_df, use_container_width=True)
 
-st.dataframe(filtered_df)
+        st.subheader("⬇️ Export Report")
+        download_pdf_button(filtered_df)
 
-# PDF Report
-st.subheader("⬇️ Download Report")
-download_pdf_button(filtered_df, filters)
+    else:
+        st.warning("No data found for selected filters.")
+
+elif uploaded_file:
+    st.error("Failed to validate uploaded file. Check required columns and data types.")
+else:
+    st.info("Please upload an Excel file to begin.")

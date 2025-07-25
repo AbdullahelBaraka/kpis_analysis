@@ -516,7 +516,8 @@ def get_pdfkit_config():
         st.error(f"Error configuring wkhtmltopdf. Please ensure it is installed and the path is correct: {e}")
         st.info("If running locally, download wkhtmltopdf from https://wkhtmltopdf.org/downloads.html")
         st.info("If deploying on Streamlit Cloud, remember to add 'wkhtmltopdf' to packages.txt.")
-        st.stop()def generate_dashboard_html(df, filters):
+        st.stop()
+        def generate_dashboard_html(df, filters):
     """Generates the full HTML content of the dashboard for PDF conversion."""
     
     # Inline CSS for the PDF report

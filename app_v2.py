@@ -320,8 +320,9 @@ def create_pivot_table(kpi_df, report_type, group_type):
         # No attributes case
         return create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type)
 
+
 def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
-    """Handle two attribute pivot tables"""
+    """Handle two attribute pivot tables and add a total row."""
     results = []
     
     for attr1 in sorted(kpi_df['attribute 1'].dropna().unique()):
@@ -339,7 +340,9 @@ def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
             # Reorder columns by month order
             available_months = [m for m in MONTH_ORDER if m in pivot.columns]
             pivot = pivot.reindex(columns=available_months)
-            pivot['Total'] = pivot.sum(axis=1) if group_type == 'sum' else pivot.mean(axis=1)
+            
+            # Add 'Total' column for rows
+            pivot['Total'] = pivot.apply(lambda x: x.sum() if group_type == 'sum' else x.mean(), axis=1)
         else:
             pivot = pd.pivot_table(
                 sub_df,
@@ -350,13 +353,20 @@ def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
             )
             pivot.columns = ['Total']
         
-        pivot = pivot.reset_index()
+        # Calculate grand total row for the entire sub-pivot
+        grand_total_row = pd.DataFrame([{
+            'attribute 2': 'Total',
+            **{col: (pivot[col].sum() if group_type == 'sum' else pivot[col].mean()) for col in pivot.columns if col != 'attribute 2'}
+        }])
+        
+        pivot = pd.concat([pivot, grand_total_row], ignore_index=True)
+        pivot = pivot.reset_index(drop=True)
         
         # Format values
         for col in pivot.columns[1:]:
             pivot[col] = pivot[col].apply(lambda x: format_value(x, group_type))
         
-        # Calculate attribute total
+        # Calculate attribute 1 total (this is the overall total for this attr1 slice)
         attr1_total = format_value(sub_df['value'].sum() if group_type == 'sum' else sub_df['value'].mean(), group_type)
         
         results.append((attr1, attr1_total, pivot))
@@ -364,7 +374,7 @@ def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
     return results
 
 def create_single_attribute_pivot(kpi_df, attribute, report_type, aggfunc, group_type):
-    """Handle single attribute pivot tables"""
+    """Handle single attribute pivot tables and add a total row."""
     if report_type != "Monthly":
         pivot = pd.pivot_table(
             kpi_df,
@@ -377,7 +387,8 @@ def create_single_attribute_pivot(kpi_df, attribute, report_type, aggfunc, group
         # Reorder columns by month order
         available_months = [m for m in MONTH_ORDER if m in pivot.columns]
         pivot = pivot.reindex(columns=available_months)
-        pivot['Total'] = pivot.sum(axis=1) if group_type == 'sum' else pivot.mean(axis=1)
+        # Add 'Total' column for rows
+        pivot['Total'] = pivot.apply(lambda x: x.sum() if group_type == 'sum' else x.mean(), axis=1)
     else:
         pivot = pd.pivot_table(
             kpi_df,
@@ -388,16 +399,24 @@ def create_single_attribute_pivot(kpi_df, attribute, report_type, aggfunc, group
         )
         pivot.columns = ['Total']
     
-    pivot = pivot.reset_index()
+    # Calculate a grand total row
+    grand_total_values = {
+        col: (pivot[col].sum() if group_type == 'sum' else pivot[col].mean())
+        for col in pivot.columns if col != attribute
+    }
+    grand_total_row = pd.DataFrame([{'attribute': 'Total', **grand_total_values}])
+    grand_total_row.rename(columns={'attribute': attribute}, inplace=True) # Ensure the attribute column name is consistent
+
+    pivot = pd.concat([pivot.reset_index(), grand_total_row], ignore_index=True) # Reset index before concat to handle the attribute column
     
     # Format values
-    for col in pivot.columns[1:]:
+    for col in pivot.columns[1:]: # Skip the first column (attribute name)
         pivot[col] = pivot[col].apply(lambda x: format_value(x, group_type))
     
     return pivot
 
 def create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
-    """Handle no attribute pivot tables"""
+    """Handle no attribute pivot tables and ensure a 'Total' row is present."""
     if report_type != "Monthly":
         pivot = pd.pivot_table(
             kpi_df,
@@ -409,19 +428,49 @@ def create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
         # Reorder columns by month order
         available_months = [m for m in MONTH_ORDER if m in pivot.columns]
         pivot = pivot.reindex(columns=available_months)
-        pivot['Total'] = pivot.sum() if group_type == 'sum' else pivot.mean()
-        pivot = pd.DataFrame([pivot])
+        pivot_total_value = pivot.sum().sum() if group_type == 'sum' else pivot.mean().mean() # Total of all months
+        
+        # Create a single row DataFrame for the total
+        total_row = pd.DataFrame({
+            'KPI Data': ['Total'],
+            **{col: format_value(pivot[col].sum() if group_type == 'sum' else pivot[col].mean(), group_type) for col in pivot.columns},
+            'Overall Total': format_value(pivot_total_value, group_type) # Add an overall total column
+        })
+
+        pivot.loc['Total'] = pivot.apply(lambda x: x.sum() if group_type == 'sum' else x.mean())
+        pivot = pivot.reset_index().rename(columns={'index': 'KPI Data'})
+        pivot['Overall Total'] = pivot.iloc[:, 1:].apply(lambda x: x.sum() if group_type == 'sum' else x.mean(), axis=1) # Calculate overall total for each row
+        
+        # Ensure the 'Total' row is correctly formatted
+        pivot.loc[pivot['KPI Data'] == 'Total', 'Overall Total'] = format_value(pivot_total_value, group_type)
+
+
     else:
         total_value = kpi_df['value'].sum() if group_type == 'sum' else kpi_df['value'].mean()
-        pivot = pd.DataFrame({'Total': [format_value(total_value, group_type)]})
+        # Create a DataFrame with a single row named "Total"
+        pivot = pd.DataFrame({
+            'KPI Data': ['Total'],
+            'Overall Total': [format_value(total_value, group_type)]
+        })
     
+    # Format numeric columns excluding 'KPI Data'
+    for col in pivot.columns:
+        if col != 'KPI Data':
+            pivot[col] = pivot[col].apply(lambda x: format_value(x, group_type))
+
     return pivot
 
 
 def create_chart(kpi_df, kpi_name, group_type):
-    """Create appropriate chart for KPI data and return Plotly figure object."""
-    has_attr1 = kpi_df['attribute 1'].notna().any() and kpi_df['attribute 1'].ne("").any()
-    has_attr2 = kpi_df['attribute 2'].notna().any() and kpi_df['attribute 2'].ne("").any()
+    """
+    Create appropriate chart for KPI data and return Plotly figure object.
+    This function now explicitly excludes 'Total' rows from chart data.
+    """
+    # Filter out any 'Total' rows before creating the chart
+    chart_data = kpi_df.copy()
+
+    has_attr1 = chart_data['attribute 1'].notna().any() and chart_data['attribute 1'].ne("").any()
+    has_attr2 = chart_data['attribute 2'].notna().any() and chart_data['attribute 2'].ne("").any()
     
     # Use 'mean' for aggregation if group_type is 'average' or 'mean'
     aggfunc = 'sum' if group_type == 'sum' else 'mean' 
@@ -429,7 +478,14 @@ def create_chart(kpi_df, kpi_name, group_type):
     fig = None 
     
     if has_attr1 and has_attr2:
-        chart_df = kpi_df.groupby(['attribute 1', 'attribute 2'])['value'].agg(aggfunc).reset_index()
+        # Exclude 'Total' from 'attribute 1' and 'attribute 2'
+        chart_data = chart_data[
+            (chart_data['attribute 1'] != 'Total') & 
+            (chart_data['attribute 2'] != 'Total')
+        ]
+        if chart_data.empty: return None
+
+        chart_df = chart_data.groupby(['attribute 1', 'attribute 2'])['value'].agg(aggfunc).reset_index()
         fig = px.bar(
             chart_df,
             x='attribute 1',
@@ -437,35 +493,46 @@ def create_chart(kpi_df, kpi_name, group_type):
             color='attribute 2',
             barmode='group',
             title=f"{kpi_name} by Attributes",
-            labels={'value': 'KPI Value', 'attribute 1': chart_df.columns[0], 'attribute 2': chart_df.columns[1]}, # Modified label to just column name
-            color_discrete_sequence=px.colors.qualitative.D3 # Use a distinct qualitative color scale
+            labels={'value': 'KPI Value', 'attribute 1': chart_df.columns[0], 'attribute 2': chart_df.columns[1]},
+            color_discrete_sequence=px.colors.qualitative.D3
         )
     elif has_attr1:
-        chart_df = kpi_df.groupby('attribute 1')['value'].agg(aggfunc).reset_index()
+        # Exclude 'Total' from 'attribute 1'
+        chart_data = chart_data[chart_data['attribute 1'] != 'Total']
+        if chart_data.empty: return None
+
+        chart_df = chart_data.groupby('attribute 1')['value'].agg(aggfunc).reset_index()
         fig = px.bar(
             chart_df,
             x='attribute 1',
             y='value',
-            title=f"{kpi_name} by {chart_df.columns[0]}", # Modified title
-            labels={'value': 'KPI Value', 'attribute 1': chart_df.columns[0]}, # Modified label to just column name
+            title=f"{kpi_name} by {chart_df.columns[0]}",
+            labels={'value': 'KPI Value', 'attribute 1': chart_df.columns[0]},
             color='value',
             color_continuous_scale='viridis'
         )
     elif has_attr2:
-        chart_df = kpi_df.groupby('attribute 2')['value'].agg(aggfunc).reset_index()
+        # Exclude 'Total' from 'attribute 2'
+        chart_data = chart_data[chart_data['attribute 2'] != 'Total']
+        if chart_data.empty: return None
+
+        chart_df = chart_data.groupby('attribute 2')['value'].agg(aggfunc).reset_index()
         fig = px.bar(
             chart_df,
             x='attribute 2',
             y='value',
-            title=f"{kpi_name} by {chart_df.columns[0]}", # Modified title
-            labels={'value': 'KPI Value', 'attribute 2': chart_df.columns[0]}, # Modified label to just column name
+            title=f"{kpi_name} by {chart_df.columns[0]}",
+            labels={'value': 'KPI Value', 'attribute 2': chart_df.columns[0]},
             color='value',
             color_continuous_scale='viridis'
         )
     else:
-        # Create time series chart
-        if len(kpi_df['month'].unique()) > 1:
-            monthly_data = kpi_df.groupby('month')['value'].agg(aggfunc).reset_index()
+        # For no attributes, if it's a time series chart, exclude any 'Total' month if it somehow appears
+        if len(chart_data['month'].unique()) > 1:
+            chart_data = chart_data[chart_data['month'] != 'Total'] # Just in case 'Total' appeared as a month
+            if chart_data.empty: return None
+
+            monthly_data = chart_data.groupby('month')['value'].agg(aggfunc).reset_index()
             monthly_data['month_num'] = monthly_data['month'].map({month: i for i, month in enumerate(MONTH_ORDER, 1)})
             monthly_data = monthly_data.sort_values('month_num')
             
@@ -628,7 +695,7 @@ def generate_dashboard_html(df, filters):
             # Wrap each KPI section (heading, table, chart) in a div with page-break-inside: avoid
             html_content += f"""
             <div class="kpi-section-for-pdf">
-                <h3>📊 {kpi_name} (Total: {total_value})</h3>
+                <h3>� {kpi_name} (Total: {total_value})</h3>
             """
 
             # Create pivot table
@@ -1006,116 +1073,108 @@ if uploaded_file:
                     if "All KPIs" in selected_kpi_names_comparison_global:
                         kpis_to_compare = all_kpi_names_comparison # Use all actual KPI names
 
-                    # Get unique departments from the overall filtered data relevant to selected KPIs
-                    # This is important to ensure we only show departments that have data for the selected KPIs
-                    all_departments_with_kpi_data = df[df['kpi name'].isin(kpis_to_compare)]['department'].dropna().unique().tolist()
-                    
-                    if not all_departments_with_kpi_data:
-                        st.info("No departments found with data for the selected KPIs in the provided dataset.")
-                        st.markdown("---")
-                        
-                    # Group by department first
-                    for dept_comp in sorted(all_departments_with_kpi_data):
-                        st.markdown(f"## 🏢 Department: {dept_comp}")
+                    # Logic to iterate through selected KPIs and display comparison tables/charts
+                    for kpi_name_selected in kpis_to_compare:
+                        st.markdown(f"### Comparison for: {kpi_name_selected}")
 
-                        # Filter data specific to this department for comparison
-                        dept_df_comp = df[df['department'] == dept_comp].copy()
+                        # Start with the full dataframe for the specific KPI
+                        kpi_df_specific = df[df['kpi name'] == kpi_name_selected].copy() 
 
-                        # Filter KPIs relevant to this department and selected KPIs for comparison
-                        kpis_in_this_dept = dept_df_comp[dept_df_comp['kpi name'].isin(kpis_to_compare)][['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values
-                        
-                        if not kpis_in_this_dept.tolist(): # Check if there are any KPIs to display in this department
-                            st.info(f"No KPI data found for selected KPIs in {dept_comp} Department within the chosen comparison periods.")
+                        # Apply filters for report 1 and report 2 to these KPI-specific dataframes
+                        kpi_df_1_filtered = apply_filters(kpi_df_specific, filters_1)
+                        kpi_df_2_filtered = apply_filters(kpi_df_specific, filters_2)
+
+
+                        if kpi_df_1_filtered.empty and kpi_df_2_filtered.empty:
+                            st.info(f"No data for '{kpi_name_selected}' in either selected period.")
                             st.markdown("---")
-                            continue
+                            continue # Skip to next KPI if no data
+
+                        # Determine grouping criteria for the KPI (should be consistent)
+                        group_type = 'sum' # Default to sum
+                        if not kpi_df_1_filtered.empty:
+                            group_type = kpi_df_1_filtered['grouping criteria'].iloc[0]
+                        elif not kpi_df_2_filtered.empty:
+                            group_type = kpi_df_2_filtered['grouping criteria'].iloc[0]
+
+                        # Define period names for chart labels and table columns
+                        report1_col_name = filters_1['period_label']
+                        report2_col_name = filters_2['period_label']
+                        
+                        # --- Build Comparison Table Data ---
+                        
+                        has_attr1 = kpi_df_specific['attribute 1'].notna().any() and kpi_df_specific['attribute 1'].ne("").any()
+                        has_attr2 = kpi_df_specific['attribute 2'].notna().any() and kpi_df_specific['attribute 2'].ne("").any()
+
+                        # Flag to track if any table/chart was successfully generated for this KPI
+                        kpi_data_displayed = False # Initialize at the beginning of KPI loop
+                        
+                        # Initialize comparison_table_df and fig_comp to prevent NameError
+                        comparison_table_df = pd.DataFrame() 
+                        fig_comp = None 
+
+                        if has_attr1 and has_attr2:
+                            # Iterate through unique values of attribute 1
+                            unique_attr1_values = kpi_df_specific['attribute 1'].dropna().unique()
+                            # Local flag to check if any sub-attribute section for this specific KPI was displayed
+                            any_sub_attribute_data_displayed_in_this_kpi = False
+
+                            for attr1_val in sorted(unique_attr1_values):
+                                # Filter for the current attribute 1 value for both reports
+                                sub_kpi_df_1_filtered = kpi_df_1_filtered[kpi_df_1_filtered['attribute 1'] == attr1_val]
+                                sub_kpi_df_2_filtered = kpi_df_2_filtered[kpi_df_2_filtered['attribute 1'] == attr1_val]
+
+                                # Group by attribute 2 for this attribute 1 value
+                                agg_df1 = sub_kpi_df_1_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': report1_col_name})
+                                agg_df2 = sub_kpi_df_2_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': report2_col_name})
+                                
+                                # Check if both aggregated dataframes are empty for this attribute 1 value
+                                if agg_df1.empty and agg_df2.empty:
+                                    continue # Skip to the next primary attribute value
+
+                                sub_comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 2', how='outer').fillna(0)
+                                sub_comparison_table_df['Change'] = sub_comparison_table_df[report2_col_name] - sub_comparison_table_df[report1_col_name]
+                                sub_comparison_table_df['% Change'] = (sub_comparison_table_df['Change'] / sub_comparison_table_df[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                                
+                                # Add 'Total' row to the sub_comparison_table_df
+                                total_row_values = {col: (sub_comparison_table_df[col].sum() if group_type == 'sum' else sub_comparison_table_df[col].mean()) for col in sub_comparison_table_df.columns if col not in ['attribute 2', '% Change']}
+                                total_row_values['attribute 2'] = 'Total'
+                                total_row_values['% Change'] = 'N/A' # % Change for total is usually not meaningful
+                                sub_comparison_table_df = pd.concat([sub_comparison_table_df, pd.DataFrame([total_row_values])], ignore_index=True)
 
 
-                        for kpi_data_comp in kpis_in_this_dept:
-                            kpi_id_selected = kpi_data_comp[0]
-                            kpi_name_selected = kpi_data_comp[1]
-                            group_type = kpi_data_comp[2]
+                                # Format numerical columns
+                                for col in [report1_col_name, report2_col_name, 'Change']:
+                                    if col in sub_comparison_table_df.columns:
+                                        sub_comparison_table_df[col] = sub_comparison_table_df[col].apply(lambda x: format_value(x, group_type))
 
-                            st.markdown(f"### Comparison for: {kpi_name_selected}")
-
-                            # Start with the full dataframe for the specific KPI and department
-                            kpi_df_specific_dept = dept_df_comp[dept_df_comp['kpi id'] == kpi_id_selected].copy() 
-
-                            # Apply filters for report 1 and report 2 to these KPI-specific dataframes
-                            kpi_df_1_filtered = apply_filters(kpi_df_specific_dept, filters_1)
-                            kpi_df_2_filtered = apply_filters(kpi_df_specific_dept, filters_2)
+                                # Get the actual attribute 2 column name to use in the title/labels
+                                attr2_col_name = kpi_df_specific.columns[3].replace('attribute ', '') # e.g., 'Specialty' or 'Location'
+                                sub_comparison_table_df.rename(columns={'attribute 2': attr2_col_name}, inplace=True)
 
 
-                            if kpi_df_1_filtered.empty and kpi_df_2_filtered.empty:
-                                st.info(f"No data for '{kpi_name_selected}' in either selected period for {dept_comp} Department.")
-                                st.markdown("---")
-                                continue # Skip to next KPI if no data
+                                if not sub_comparison_table_df.empty:
+                                    kpi_data_displayed = True # Set global flag to True if anything is displayed
+                                    any_sub_attribute_data_displayed_in_this_kpi = True # Set local flag to True
+                                    # MODIFIED LINE: Changed heading to use KPI name instead of 'Department' for attribute 1 section
+                                    st.markdown(f"#### {kpi_name_selected} ({attr1_val})") # Removed 'by [attribute name]'
+                                    st.dataframe(sub_comparison_table_df, use_container_width=True, hide_index=True)
 
-                            # Determine grouping criteria for the KPI (should be consistent)
-                            # group_type is already derived from kpi_data_comp
-
-                            # Define period names for chart labels and table columns
-                            report1_col_name = filters_1['period_label']
-                            report2_col_name = filters_2['period_label']
-                            
-                            # --- Build Comparison Table Data ---
-                            
-                            has_attr1 = kpi_df_specific_dept['attribute 1'].notna().any() and kpi_df_specific_dept['attribute 1'].ne("").any()
-                            has_attr2 = kpi_df_specific_dept['attribute 2'].notna().any() and kpi_df_specific_dept['attribute 2'].ne("").any()
-
-                            # Initialize comparison_table_df and fig_comp to prevent NameError
-                            comparison_table_df = pd.DataFrame() 
-                            fig_comp = None 
-
-                            if has_attr1 and has_attr2:
-                                # Iterate through unique values of attribute 1
-                                unique_attr1_values = kpi_df_specific_dept['attribute 1'].dropna().unique()
-                                local_kpi_data_displayed = False # Flag for this specific KPI within this department
-
-                                for attr1_val in sorted(unique_attr1_values):
-                                    # Filter for the current attribute 1 value for both reports
-                                    sub_kpi_df_1_filtered = kpi_df_1_filtered[kpi_df_1_filtered['attribute 1'] == attr1_val]
-                                    sub_kpi_df_2_filtered = kpi_df_2_filtered[kpi_df_2_filtered['attribute 1'] == attr1_val]
-
-                                    # Group by attribute 2 for this attribute 1 value
-                                    agg_df1 = sub_kpi_df_1_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': report1_col_name})
-                                    agg_df2 = sub_kpi_df_2_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': report2_col_name})
+                                    # Create chart for this sub-comparison - Filter out 'Total' row
+                                    melted_sub_df = sub_comparison_table_df[sub_comparison_table_df[attr2_col_name] != 'Total'].melt(
+                                                                            id_vars=[attr2_col_name], # Use the renamed column
+                                                                            value_vars=[report1_col_name, report2_col_name],
+                                                                            var_name='Period', value_name='Value')
                                     
-                                    # Check if both aggregated dataframes are empty for this attribute 1 value
-                                    if agg_df1.empty and agg_df2.empty:
-                                        continue # Skip to the next primary attribute value
-
-                                    sub_comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 2', how='outer').fillna(0)
-                                    sub_comparison_table_df['Change'] = sub_comparison_table_df[report2_col_name] - sub_comparison_table_df[report1_col_name]
-                                    sub_comparison_table_df['% Change'] = (sub_comparison_table_df['Change'] / sub_comparison_table_df[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
-                                    
-                                    # Format numerical columns
-                                    for col in [report1_col_name, report2_col_name, 'Change']:
-                                        if col in sub_comparison_table_df.columns:
-                                            sub_comparison_table_df[col] = sub_comparison_table_df[col].apply(lambda x: format_value(x, group_type))
-
-                                    # Get the actual attribute 2 column name to use in the title/labels
-                                    attr2_col_name = kpi_df_specific_dept.columns[3].replace('attribute ', '') # e.g., 'Specialty' or 'Location'
-                                    sub_comparison_table_df.rename(columns={'attribute 2': attr2_col_name}, inplace=True)
-
-
-                                    if not sub_comparison_table_df.empty:
-                                        local_kpi_data_displayed = True # Set local flag to True
-                                        st.markdown(f"#### {kpi_name_selected} ({attr1_val})") # Removed 'by [attribute name]'
-                                        st.dataframe(sub_comparison_table_df, use_container_width=True, hide_index=True)
-
-                                        # Create chart for this sub-comparison
-                                        melted_sub_df = sub_comparison_table_df.melt(id_vars=[sub_comparison_table_df.columns[0]], # Use the renamed column
-                                                                                value_vars=[report1_col_name, report2_col_name],
-                                                                                var_name='Period', value_name='Value')
-                                        
+                                    if not melted_sub_df.empty: # Only create chart if there's data after filtering 'Total'
                                         fig_sub_comp = px.bar(
                                             melted_sub_df, 
-                                            x=melted_sub_df.columns[0], # Use the renamed column as x-axis
+                                            x=attr2_col_name, # Use the renamed column as x-axis
                                             y='Value', 
                                             color='Period', 
                                             barmode='group',
                                             title=f"Comparison for {kpi_name_selected} ({attr1_val})", # Modified title, removed "by X"
-                                            labels={'Value': 'KPI Value', melted_sub_df.columns[0]: attr2_col_name}, # Modified label, show correct attribute name on axis
+                                            labels={'Value': 'KPI Value', attr2_col_name: attr2_col_name}, # Modified label, show correct attribute name on axis
                                             color_discrete_map={report1_col_name: 'blue', report2_col_name: 'red'},
                                             template='plotly_white'
                                         )
@@ -1127,47 +1186,60 @@ if uploaded_file:
                                             xaxis_title="" # Hide x-axis title
                                         )
                                         st.plotly_chart(fig_sub_comp, use_container_width=True)
-                                    
-                                    st.markdown("-----") # Sub-separator for clarity
                                 
-                                if not local_kpi_data_displayed: # If no data was displayed in any sub-attribute section for this KPI
-                                    st.info(f"No detailed attribute data found for '{kpi_name_selected}' (grouped by {kpi_df_specific_dept.columns[2].replace('attribute ', '')} and {kpi_df_specific_dept.columns[3].replace('attribute ', '')}) in either selected period for {dept_comp} Department.")
+                                st.markdown("-----") # Sub-separator for clarity
+                            
+                            if not any_sub_attribute_data_displayed_in_this_kpi: # If no data was displayed in any sub-attribute section
+                                st.info(f"No detailed attribute data found for '{kpi_name_selected}' (grouped by {kpi_df_specific.columns[2].replace('attribute ', '')} and {kpi_df_specific.columns[3].replace('attribute ', '')}) in either selected period.")
 
 
-                            elif has_attr1:
-                                # Group by attribute 1
-                                agg_df1 = kpi_df_1_filtered.groupby('attribute 1')['value'].agg(group_type).reset_index().rename(columns={'value': report1_col_name})
-                                agg_df2 = kpi_df_2_filtered.groupby('attribute 1')['value'].agg(group_type).reset_index().rename(columns={'value': report2_col_name})
+                        elif has_attr1:
+                            # Group by attribute 1
+                            agg_df1 = kpi_df_1_filtered.groupby('attribute 1')['value'].agg(group_type).reset_index().rename(columns={'value': report1_col_name})
+                            agg_df2 = kpi_df_2_filtered.groupby('attribute 1')['value'].agg(group_type).reset_index().rename(columns={'value': report2_col_name})
+                            
+                            # Check if both aggregated dataframes are empty
+                            if agg_df1.empty and agg_df2.empty:
+                                st.info(f"No attribute data ({kpi_df_specific.columns[2].replace('attribute ', '')}) found for '{kpi_name_selected}' in either selected period.")
+                                st.markdown("---")
+                                continue # Skip to next KPI
+
+                            comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 1', how='outer').fillna(0)
+                            comparison_table_df['Change'] = comparison_table_df[report2_col_name] - comparison_table_df[report1_col_name]
+                            comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                            # Add KPI Name column for chart
+                            comparison_table_df['KPI Name'] = kpi_name_selected
+
+                            # Add 'Total' row
+                            total_row_values = {col: (comparison_table_df[col].sum() if group_type == 'sum' else comparison_table_df[col].mean()) for col in comparison_table_df.columns if col not in ['attribute 1', '% Change', 'KPI Name']}
+                            total_row_values['attribute 1'] = 'Total'
+                            total_row_values['% Change'] = 'N/A'
+                            total_row_values['KPI Name'] = kpi_name_selected
+                            comparison_table_df = pd.concat([comparison_table_df, pd.DataFrame([total_row_values])], ignore_index=True)
+
+
+                            attr1_col_name = kpi_df_specific.columns[2].replace('attribute ', '')
+                            comparison_table_df.rename(columns={'attribute 1': attr1_col_name}, inplace=True) # Removed "Attribute " prefix
+
+                            if not comparison_table_df.empty:
+                                kpi_data_displayed = True # Set flag to True if anything is displayed
+                                st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
+
+                                # --- Create Comparison Chart for has_attr1 - Filter out 'Total' row ---
+                                melted_df = comparison_table_df[comparison_table_df[attr1_col_name] != 'Total'].melt(
+                                                                    id_vars=[attr1_col_name], # Use the renamed attribute column
+                                                                    value_vars=[report1_col_name, report2_col_name],
+                                                                    var_name='Period', value_name='Value')
                                 
-                                # Check if both aggregated dataframes are empty
-                                if agg_df1.empty and agg_df2.empty:
-                                    st.info(f"No attribute data ({kpi_df_specific_dept.columns[2].replace('attribute ', '')}) found for '{kpi_name_selected}' in either selected period for {dept_comp} Department.")
-                                    st.markdown("---")
-                                    continue # Skip to next KPI
-
-                                comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 1', how='outer').fillna(0)
-                                comparison_table_df['Change'] = comparison_table_df[report2_col_name] - comparison_table_df[report1_col_name]
-                                comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
-                                
-                                attr1_col_name = kpi_df_specific_dept.columns[2].replace('attribute ', '')
-                                comparison_table_df.rename(columns={'attribute 1': attr1_col_name}, inplace=True) # Removed "Attribute " prefix
-
-                                if not comparison_table_df.empty:
-                                    local_kpi_data_displayed = True
-                                    st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
-
-                                    # --- Create Comparison Chart for has_attr1 ---
-                                    melted_df = comparison_table_df.melt(id_vars=[comparison_table_df.columns[0]], # Use the renamed attribute column
-                                                                        value_vars=[report1_col_name, report2_col_name],
-                                                                        var_name='Period', value_name='Value')
+                                if not melted_df.empty: # Only create chart if there's data after filtering 'Total'
                                     fig_comp = px.bar(
                                         melted_df, 
-                                        x=melted_df.columns[0], # Use the renamed attribute column as x-axis
+                                        x=attr1_col_name, # Use the renamed attribute column as x-axis
                                         y='Value', 
                                         color='Period', 
                                         barmode='group',
                                         title=f"Comparison for {kpi_name_selected} by {attr1_col_name}", # Modified title, removed "by X"
-                                        labels={'Value': 'KPI Value', melted_df.columns[0]: attr1_col_name}, # Modified label
+                                        labels={'Value': 'KPI Value', attr1_col_name: attr1_col_name}, # Modified label
                                         color_discrete_map={report1_col_name: 'blue', report2_col_name: 'red'},
                                         template='plotly_white'
                                     )
@@ -1181,40 +1253,53 @@ if uploaded_file:
                                     st.plotly_chart(fig_comp, use_container_width=True)
 
 
-                            elif has_attr2:
-                                # Group by attribute 2
-                                agg_df1 = kpi_df_1_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': report1_col_name})
-                                agg_df2 = kpi_df_2_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': report2_col_name})
+                        elif has_attr2:
+                            # Group by attribute 2
+                            agg_df1 = kpi_df_1_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': report1_col_name})
+                            agg_df2 = kpi_df_2_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': report2_col_name})
 
-                                # Check if both aggregated dataframes are empty
-                                if agg_df1.empty and agg_df2.empty:
-                                    st.info(f"No attribute data ({kpi_df_specific_dept.columns[3].replace('attribute ', '')}) found for '{kpi_name_selected}' in either selected period for {dept_comp} Department.")
-                                    st.markdown("---")
-                                    continue # Skip to next KPI
+                            # Check if both aggregated dataframes are empty
+                            if agg_df1.empty and agg_df2.empty:
+                                st.info(f"No attribute data ({kpi_df_specific.columns[3].replace('attribute ', '')}) found for '{kpi_name_selected}' in either selected period.")
+                                st.markdown("---")
+                                continue # Skip to next KPI
 
-                                comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 2', how='outer').fillna(0)
-                                comparison_table_df['Change'] = comparison_table_df[report2_col_name] - comparison_table_df[report1_col_name]
-                                comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                            comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 2', how='outer').fillna(0)
+                            comparison_table_df['Change'] = comparison_table_df[report2_col_name] - comparison_table_df[report1_col_name]
+                            comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                            # Add KPI Name column for chart
+                            comparison_table_df['KPI Name'] = kpi_name_selected
+                            
+                            # Add 'Total' row
+                            total_row_values = {col: (comparison_table_df[col].sum() if group_type == 'sum' else comparison_table_df[col].mean()) for col in comparison_table_df.columns if col not in ['attribute 2', '% Change', 'KPI Name']}
+                            total_row_values['attribute 2'] = 'Total'
+                            total_row_values['% Change'] = 'N/A'
+                            total_row_values['KPI Name'] = kpi_name_selected
+                            comparison_table_df = pd.concat([comparison_table_df, pd.DataFrame([total_row_values])], ignore_index=True)
+
+
+                            attr2_col_name = kpi_df_specific.columns[3].replace('attribute ', '')
+                            comparison_table_df.rename(columns={'attribute 2': attr2_col_name}, inplace=True) # Removed "Attribute " prefix
+
+                            if not comparison_table_df.empty:
+                                kpi_data_displayed = True # Set flag to True if anything is displayed
+                                st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
+
+                                # --- Create Comparison Chart for has_attr2 - Filter out 'Total' row ---
+                                melted_df = comparison_table_df[comparison_table_df[attr2_col_name] != 'Total'].melt(
+                                                                    id_vars=[attr2_col_name], # Use the renamed attribute column
+                                                                    value_vars=[report1_col_name, report2_col_name],
+                                                                    var_name='Period', value_name='Value')
                                 
-                                attr2_col_name = kpi_df_specific_dept.columns[3].replace('attribute ', '')
-                                comparison_table_df.rename(columns={'attribute 2': attr2_col_name}, inplace=True) # Removed "Attribute " prefix
-
-                                if not comparison_table_df.empty:
-                                    local_kpi_data_displayed = True
-                                    st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
-
-                                    # --- Create Comparison Chart for has_attr2 ---
-                                    melted_df = comparison_table_df.melt(id_vars=[comparison_table_df.columns[0]], # Use the renamed attribute column
-                                                                        value_vars=[report1_col_name, report2_col_name],
-                                                                        var_name='Period', value_name='Value')
+                                if not melted_df.empty: # Only create chart if there's data after filtering 'Total'
                                     fig_comp = px.bar(
                                         melted_df, 
-                                        x=melted_df.columns[0], # Use the renamed attribute column as x-axis
+                                        x=attr2_col_name, # Use the renamed attribute column as x-axis
                                         y='Value', 
                                         color='Period', 
                                         barmode='group',
                                         title=f"Comparison for {kpi_name_selected} by {attr2_col_name}", # Modified title
-                                        labels={'Value': 'KPI Value', melted_df.columns[0]: attr2_col_name}, # Modified label
+                                        labels={'Value': 'KPI Value', attr2_col_name: attr2_col_name}, # Modified label
                                         color_discrete_map={report1_col_name: 'blue', report2_col_name: 'red'},
                                         template='plotly_white'
                                     )
@@ -1228,35 +1313,43 @@ if uploaded_file:
                                     st.plotly_chart(fig_comp, use_container_width=True)
 
 
-                            else: # No attributes
-                                # No attributes, just aggregate the total KPI value for each period
-                                total_val_1 = kpi_df_1_filtered['value'].agg(group_type) if not kpi_df_1_filtered.empty else 0
-                                total_val_2 = kpi_df_2_filtered['value'].agg(group_type) if not kpi_df_2_filtered.empty else 0
+                        else: # No attributes
+                            # No attributes, just aggregate the total KPI value for each period
+                            total_val_1 = kpi_df_1_filtered['value'].agg(group_type) if not kpi_df_1_filtered.empty else 0
+                            total_val_2 = kpi_df_2_filtered['value'].agg(group_type) if not kpi_df_2_filtered.empty else 0
+                            
+                            change = total_val_2 - total_val_1
+                            pct_change = (change / total_val_1 * 100) if total_val_1 != 0 else (0 if change == 0 else np.nan)
+                            pct_change_str = f"{pct_change:.1f}%" if pd.notna(pct_change) else "N/A"
+
+                            comparison_table_df = pd.DataFrame({
+                                'KPI': [kpi_name_selected],
+                                report1_col_name: [format_value(total_val_1, group_type)],
+                                report2_col_name: [format_value(total_val_2, group_type)],
+                                'Change': [format_value(change, group_type)],
+                                '% Change': [pct_change_str]
+                            })
+                            
+                            # Add a 'Total' row to the no-attribute comparison table, which is essentially the single row itself
+                            # We'll just ensure the 'KPI' column is consistent.
+                            # No specific change needed here as it's already a single total row.
+
+                            for col in [report1_col_name, report2_col_name, 'Change']:
+                                if col in comparison_table_df.columns:
+                                    comparison_table_df[col] = comparison_table_df[col].apply(lambda x: format_value(x, group_type))
+
+                            if not comparison_table_df.empty:
+                                kpi_data_displayed = True
+                                st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
+
+                                # --- Create Comparison Chart for no attributes - Filter out 'Total' KPI row if it exists ---
+                                # This ensures that if the 'KPI' column somehow gets a 'Total' value, it's excluded.
+                                melted_df = comparison_table_df[comparison_table_df['KPI'] != 'Total'].melt(
+                                                                    id_vars=['KPI'], 
+                                                                    value_vars=[report1_col_name, report2_col_name],
+                                                                    var_name='Period', value_name='Value')
                                 
-                                change = total_val_2 - total_val_1
-                                pct_change = (change / total_val_1 * 100) if total_val_1 != 0 else (0 if change == 0 else np.nan)
-                                pct_change_str = f"{pct_change:.1f}%" if pd.notna(pct_change) else "N/A"
-
-                                comparison_table_df = pd.DataFrame({
-                                    'KPI': [kpi_name_selected],
-                                    report1_col_name: [format_value(total_val_1, group_type)],
-                                    report2_col_name: [format_value(total_val_2, group_type)],
-                                    'Change': [format_value(change, group_type)],
-                                    '% Change': [pct_change_str]
-                                })
-                                
-                                for col in [report1_col_name, report2_col_name, 'Change']:
-                                    if col in comparison_table_df.columns:
-                                        comparison_table_df[col] = comparison_table_df[col].apply(lambda x: format_value(x, group_type))
-
-                                if not comparison_table_df.empty:
-                                    local_kpi_data_displayed = True
-                                    st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
-
-                                    # --- Create Comparison Chart for no attributes ---
-                                    melted_df = comparison_table_df.melt(id_vars=['KPI'], 
-                                                                        value_vars=[report1_col_name, report2_col_name],
-                                                                        var_name='Period', value_name='Value')
+                                if not melted_df.empty: # Only create chart if there's data after filtering 'Total'
                                     fig_comp = px.bar(
                                         melted_df, 
                                         x='Period', 
@@ -1274,21 +1367,11 @@ if uploaded_file:
                                         font=dict(size=12, color="black")
                                     )
                                     st.plotly_chart(fig_comp, use_container_width=True)
-                            
-                            if not local_kpi_data_displayed: # If no data was displayed for this specific KPI
-                                st.info(f"No comparison data could be generated for '{kpi_name_selected}' in {dept_comp} Department given the chosen periods. Please check your filters and data.")
                         
                         st.markdown("---") # Separator between KPI comparisons
                     
-                    # Final check for the overall comparison section if anything was displayed
-                    # This global kpi_data_displayed logic needs to be managed carefully
-                    # as it's set True within nested loops.
-                    # A more robust check might be to track if `any_kpi_data_was_displayed_overall`
-                    # outside the department loop.
-                    
-                    # For simplicity, if the initial all_departments_with_kpi_data is empty,
-                    # we already show a message. If it's not empty, but all nested loops
-                    # resulted in 'continue' or no data, the individual st.info will cover it.
+                    if not kpi_data_displayed: # This check is now robust, based on whether any data was actually displayed for this KPI
+                        st.info("No comparison data could be generated for the selected KPIs given the chosen periods. Please check your filters and data.")
 
     except Exception as e:
         st.error(f"❌ Error processing file: {str(e)}")

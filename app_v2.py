@@ -185,12 +185,6 @@ def validate_data(df):
         
     return True
 
-def format_value(value, group_type):
-    """Format values based on grouping criteria"""
-    if pd.isna(value):
-        return 0
-    return int(value) if group_type == 'sum' else round(float(value), 1)
-
 def apply_filters(df, filters):
     """Apply selected filters to dataframe"""
     filtered_df = df.copy()
@@ -217,14 +211,21 @@ def apply_filters(df, filters):
 
     # KPI Name filter
     # Corrected logic: If "All KPIs" is selected, don't filter by kpi_name at all
+    # Otherwise, filter by the selected KPI names
     if filters.get('kpi_name') and "All KPIs" not in filters['kpi_name']:
-        if isinstance(filters['kpi_name'], list) and filters['kpi_name']: # Ensure it's a non-empty list if not All KPIs
+        if isinstance(filters['kpi_name'], list) and filters['kpi_name']:
             filtered_df = filtered_df[filtered_df['kpi name'].isin(filters['kpi_name'])]
-        elif not isinstance(filters['kpi_name'], list) and filters['kpi_name'] is not None: # Case for single KPI string
+        elif not isinstance(filters['kpi_name'], list) and filters['kpi_name'] is not None:
             filtered_df = filtered_df[filtered_df['kpi name'] == filters['kpi_name']]
-
+    # If "All KPIs" is in filters['kpi_name'], no filtering by kpi_name is done, which is the desired behavior for "All KPIs"
 
     return filtered_df
+
+def format_value(value, group_type):
+    """Format values based on grouping criteria"""
+    if pd.isna(value):
+        return 0
+    return int(value) if group_type == 'sum' else round(float(value), 1)
 
 def display_summary_cards_streamlit(df, filters):
     """Displays KPI summary cards in Streamlit columns."""
@@ -977,16 +978,20 @@ if uploaded_file:
                 if not selected_kpi_names_comparison_global:
                     st.warning("Please select at least one KPI to compare.")
                 else:
+                    kpis_to_compare = selected_kpi_names_comparison_global
+                    if "All KPIs" in selected_kpi_names_comparison_global:
+                        kpis_to_compare = all_kpi_names_comparison # Use all actual KPI names
+
                     # Logic to iterate through selected KPIs and display comparison tables/charts
-                    for kpi_name_selected in selected_kpi_names_comparison_global:
+                    for kpi_name_selected in kpis_to_compare:
                         st.markdown(f"### Comparison for: {kpi_name_selected}")
 
-                        # Filter data for the specific KPI for both reports
-                        kpi_df_original = df[df['kpi name'] == kpi_name_selected] # Start with original data for the KPI
+                        # Start with the full dataframe for the specific KPI
+                        kpi_df_specific = df[df['kpi name'] == kpi_name_selected].copy() 
 
                         # Apply filters for report 1 and report 2 to these KPI-specific dataframes
-                        kpi_df_1_filtered = apply_filters(kpi_df_original, filters_1)
-                        kpi_df_2_filtered = apply_filters(kpi_df_original, filters_2)
+                        kpi_df_1_filtered = apply_filters(kpi_df_specific, filters_1)
+                        kpi_df_2_filtered = apply_filters(kpi_df_specific, filters_2)
 
 
                         if kpi_df_1_filtered.empty and kpi_df_2_filtered.empty:
@@ -1004,8 +1009,8 @@ if uploaded_file:
                         # --- Build Comparison Table Data ---
                         comparison_table_df = pd.DataFrame()
 
-                        has_attr1 = kpi_df_original['attribute 1'].notna().any() and kpi_df_original['attribute 1'].ne("").any()
-                        has_attr2 = kpi_df_original['attribute 2'].notna().any() and kpi_df_original['attribute 2'].ne("").any()
+                        has_attr1 = kpi_df_specific['attribute 1'].notna().any() and kpi_df_specific['attribute 1'].ne("").any()
+                        has_attr2 = kpi_df_specific['attribute 2'].notna().any() and kpi_df_specific['attribute 2'].ne("").any()
 
                         if has_attr1 and has_attr2:
                             # Group by both attributes

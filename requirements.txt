@@ -1,7 +1,7 @@
 streamlit
 pandas
+numpy
 plotly
-kaleido
-xhtml2pdf
 openpyxl
+xlsxwriter
 reportlab

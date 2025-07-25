@@ -3,5 +3,6 @@ pandas
 numpy
 plotly
 openpyxl
-xlsxwriter
-reportlab
+pdfkit # NEW
+kaleido # NEW
+Pillow #

@@ -313,28 +313,29 @@ def get_summary_cards_html_for_pdf(df, filters):
     return f"""<div style="display:flex; justify-content:space-around; flex-wrap:wrap; margin-bottom: 2rem;">{summary_html}</div>"""
 
 
-def create_pivot_table(kpi_df, report_type, group_type, add_total_row=True):
+def create_pivot_table(kpi_df, report_type, group_type, add_total_row=True, original_df=None):
     """
     Create pivot table for KPI data.
     Now accepts an add_total_row boolean to conditionally include total rows.
+    Also uses original_df to determine conceptual attribute structure.
     """
-    has_attr1 = kpi_df['attribute 1'].notna().any() and kpi_df['attribute 1'].ne("").any()
-    has_attr2 = kpi_df['attribute 2'].notna().any() and kpi_df['attribute 2'].ne("").any()
-    
-    # Use 'mean' for aggregation if group_type is 'average' or 'mean'
     aggfunc = 'sum' if group_type == 'sum' else 'mean' 
-    
-    if has_attr1 and has_attr2:
-        # Two attributes case
+
+    # Determine conceptual attribute usage from the full original data for this kpi_id
+    current_kpi_id = kpi_df['kpi id'].iloc[0] # Assuming kpi_df is for a single KPI_ID
+    conceptual_kpi_df = original_df[original_df['kpi id'] == current_kpi_id]
+
+    conceptually_uses_attr1 = 'attribute 1' in conceptual_kpi_df.columns and conceptual_kpi_df['attribute 1'].notna().any() and conceptual_kpi_df['attribute 1'].ne("").any()
+    conceptually_uses_attr2 = 'attribute 2' in conceptual_kpi_df.columns and conceptual_kpi_df['attribute 2'].notna().any() and conceptual_kpi_df['attribute 2'].ne("").any()
+
+    # Prioritize two-attribute pivot if conceptually designed for it
+    if conceptually_uses_attr1 and conceptually_uses_attr2:
         return create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type, add_total_row)
-    elif has_attr1:
-        # Single attribute 1 case
+    elif conceptually_uses_attr1:
         return create_single_attribute_pivot(kpi_df, 'attribute 1', report_type, aggfunc, group_type, add_total_row)
-    elif has_attr2:
-        # Single attribute 2 case
+    elif conceptually_uses_attr2: # This case for single attr2 without attr1 is also important
         return create_single_attribute_pivot(kpi_df, 'attribute 2', report_type, aggfunc, group_type, add_total_row)
     else:
-        # No attributes case
         return create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type, add_total_row)
 
 
@@ -720,7 +721,8 @@ def generate_dashboard_html(df, filters):
             """
 
             # Create pivot table (for PDF generation, we generally want total rows)
-            pivot_result = create_pivot_table(kpi_df, filters['report_type'], group_type, add_total_row=True)
+            # Pass original_df to create_pivot_table for conceptual attribute check
+            pivot_result = create_pivot_table(kpi_df, filters['report_type'], group_type, add_total_row=True, original_df=df)
 
             if isinstance(pivot_result, list): # Two attributes case
                 for attr1, attr1_total, pivot in pivot_result:
@@ -874,18 +876,19 @@ if uploaded_file:
                                 total_value = format_value(kpi_df_single['value'].mean(), group_type_single)
                             
                             with st.expander(f"📊 {kpi_name_selected_single} (Total: {total_value})", expanded=True):
-                                # Pass add_total_row=False for Dashboard tab
-                                pivot_result = create_pivot_table(kpi_df_single, report_type, group_type_single, add_total_row=False)
+                                # Pass add_total_row=False for Dashboard tab, and original_df for conceptual check
+                                pivot_result = create_pivot_table(kpi_df_single, report_type, group_type_single, add_total_row=False, original_df=df)
                                 if isinstance(pivot_result, list):
                                     for attr1, attr1_total, pivot in pivot_result:
                                         st.markdown(f"**{attr1} (Total: {attr1_total})**")
                                         column_config = {}
                                         for col in pivot.columns:
-                                            if col != pivot.columns[0]:
+                                            # If there's a two-attribute pivot, the first column is 'attribute 2'
+                                            if col != pivot.columns[0]: 
                                                 column_config[col] = st.column_config.NumberColumn(
                                                     col, format="%d" if pivot[col].dtype == 'int64' else "%.1f"
                                                 )
-                                            else:
+                                            else: # This is the attribute 2 column
                                                 column_config[col] = st.column_config.TextColumn(col)
                                         st.dataframe(pivot, use_container_width=True, hide_index=True, column_config=column_config)
                                 else:
@@ -930,14 +933,14 @@ if uploaded_file:
                                             total_value = format_value(kpi_df['value'].mean(), group_type)
                                         
                                         with st.expander(f"📊 {kpi_name} (Total: {total_value})", expanded=True):
-                                            # Pass add_total_row=False for Dashboard tab
-                                            pivot_result = create_pivot_table(kpi_df, report_type, group_type, add_total_row=False)
+                                            # Pass add_total_row=False for Dashboard tab, and original_df for conceptual check
+                                            pivot_result = create_pivot_table(kpi_df, report_type, group_type, add_total_row=False, original_df=df)
                                             if isinstance(pivot_result, list):
                                                 for attr1, attr1_total, pivot in pivot_result:
                                                     st.markdown(f"**{attr1} (Total: {attr1_total})**")
                                                     column_config = {}
                                                     for col in pivot.columns:
-                                                        if col != pivot.columns[0]:
+                                                        if col != pivot.columns[0]: # This is the attribute 2 column
                                                             column_config[col] = st.column_config.NumberColumn(
                                                                 col, format="%d" if pivot[col].dtype == 'int64' else "%.1f"
                                                             )
@@ -1241,11 +1244,10 @@ if uploaded_file:
                             comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 1', how='outer').fillna(0)
                             comparison_table_df['Change'] = comparison_table_df[report2_col_name] - comparison_table_df[report1_col_name]
                             comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
-                            # Add KPI Name column for chart
-                            comparison_table_df['KPI Name'] = kpi_name_selected
+                            # Removed this line: comparison_table_df['KPI Name'] = kpi_name_selected
 
                             # Add 'Total' row
-                            total_row_values = {col: (comparison_table_df[col].sum() if group_type == 'sum' else comparison_table_df[col].mean()) for col in comparison_table_df.columns if col not in ['attribute 1', '% Change', 'KPI Name']}
+                            total_row_values = {col: (comparison_table_df[col].sum() if group_type == 'sum' else comparison_table_df[col].mean()) for col in comparison_table_df.columns if col not in ['attribute 1', '% Change']}
                             total_row_values['attribute 1'] = 'Total'
                             
                             # Calculate % Change for the 'Total' row
@@ -1257,7 +1259,6 @@ if uploaded_file:
                             else:
                                 total_row_values['% Change'] = 'N/A' if total_change_val != 0 else "0.0%" # If both are 0, it's 0% change
 
-                            total_row_values['KPI Name'] = kpi_name_selected
                             comparison_table_df = pd.concat([comparison_table_df, pd.DataFrame([total_row_values])], ignore_index=True)
 
 
@@ -1311,11 +1312,10 @@ if uploaded_file:
                             comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 2', how='outer').fillna(0)
                             comparison_table_df['Change'] = comparison_table_df[report2_col_name] - comparison_table_df[report1_col_name]
                             comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
-                            # Add KPI Name column for chart
-                            comparison_table_df['KPI Name'] = kpi_name_selected
+                            # Removed this line: comparison_table_df['KPI Name'] = kpi_name_selected
                             
                             # Add 'Total' row
-                            total_row_values = {col: (comparison_table_df[col].sum() if group_type == 'sum' else comparison_table_df[col].mean()) for col in comparison_table_df.columns if col not in ['attribute 2', '% Change', 'KPI Name']}
+                            total_row_values = {col: (comparison_table_df[col].sum() if group_type == 'sum' else comparison_table_df[col].mean()) for col in comparison_table_df.columns if col not in ['attribute 2', '% Change']}
                             total_row_values['attribute 2'] = 'Total'
                             
                             # Calculate % Change for the 'Total' row
@@ -1327,7 +1327,6 @@ if uploaded_file:
                             else:
                                 total_row_values['% Change'] = 'N/A' if total_change_val != 0 else "0.0%" # If both are 0, it's 0% change
 
-                            total_row_values['KPI Name'] = kpi_name_selected
                             comparison_table_df = pd.concat([comparison_table_df, pd.DataFrame([total_row_values])], ignore_index=True)
 
 

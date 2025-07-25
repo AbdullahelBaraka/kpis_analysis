@@ -1057,11 +1057,14 @@ if uploaded_file:
                         has_attr2 = kpi_df_specific['attribute 2'].notna().any() and kpi_df_specific['attribute 2'].ne("").any()
 
                         # Flag to track if any table/chart was successfully generated for this KPI
-                        kpi_data_displayed = False
+                        kpi_data_displayed = False # Initialize at the beginning of KPI loop
 
                         if has_attr1 and has_attr2:
                             # Iterate through unique values of attribute 1
                             unique_attr1_values = kpi_df_specific['attribute 1'].dropna().unique()
+                            # Local flag to check if any sub-attribute section for this specific KPI was displayed
+                            any_sub_attribute_data_displayed_in_this_kpi = False
+
                             for attr1_val in sorted(unique_attr1_values):
                                 # Filter for the current attribute 1 value for both reports
                                 sub_kpi_df_1_filtered = kpi_df_1_filtered[kpi_df_1_filtered['attribute 1'] == attr1_val]
@@ -1089,7 +1092,8 @@ if uploaded_file:
 
 
                                 if not sub_comparison_table_df.empty:
-                                    kpi_data_displayed = True # Set flag to True if anything is displayed
+                                    kpi_data_displayed = True # Set global flag to True if anything is displayed
+                                    any_sub_attribute_data_displayed_in_this_kpi = True # Set local flag to True
                                     st.markdown(f"#### {kpi_df_specific.columns[2].replace('attribute ', '')}: {attr1_val}") # Dynamically get attr1 label, removed "Attribute " prefix
                                     st.dataframe(sub_comparison_table_df, use_container_width=True, hide_index=True)
 
@@ -1119,8 +1123,8 @@ if uploaded_file:
                                 
                                 st.markdown("-----") # Sub-separator for clarity
                             
-                            if not found_data_for_kpi_attributes: # If loop completed but no data was found to generate anything
-                                st.info(f"No attribute data found for '{kpi_name_selected}' in either selected period to generate detailed comparison tables/charts.")
+                            if not any_sub_attribute_data_displayed_in_this_kpi: # If no data was displayed in any sub-attribute section
+                                st.info(f"No detailed attribute data found for '{kpi_name_selected}' (grouped by {kpi_df_specific.columns[2].replace('attribute ', '')} and {kpi_df_specific.columns[3].replace('attribute ', '')}) in either selected period.")
 
 
                         elif has_attr1:
@@ -1130,7 +1134,7 @@ if uploaded_file:
                             
                             # Check if both aggregated dataframes are empty
                             if agg_df1.empty and agg_df2.empty:
-                                st.info(f"No attribute data (attribute 1) found for '{kpi_name_selected}' in either selected period.")
+                                st.info(f"No attribute data ({kpi_df_specific.columns[2].replace('attribute ', '')}) found for '{kpi_name_selected}' in either selected period.")
                                 st.markdown("---")
                                 continue # Skip to next KPI
 
@@ -1149,7 +1153,7 @@ if uploaded_file:
 
                             # Check if both aggregated dataframes are empty
                             if agg_df1.empty and agg_df2.empty:
-                                st.info(f"No attribute data (attribute 2) found for '{kpi_name_selected}' in either selected period.")
+                                st.info(f"No attribute data ({kpi_df_specific.columns[3].replace('attribute ', '')}) found for '{kpi_name_selected}' in either selected period.")
                                 st.markdown("---")
                                 continue # Skip to next KPI
 
@@ -1256,7 +1260,7 @@ if uploaded_file:
                         
                         st.markdown("---") # Separator between KPI comparisons
                     
-                    if not kpi_data_displayed: # If after iterating through all KPIs, nothing was displayed
+                    if not kpi_data_displayed: # This check is now robust, based on whether any data was actually displayed for this KPI
                         st.info("No comparison data could be generated for the selected KPIs given the chosen periods. Please check your filters and data.")
 
     except Exception as e:

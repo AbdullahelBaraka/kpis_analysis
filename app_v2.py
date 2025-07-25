@@ -680,7 +680,11 @@ def generate_dashboard_html(df, filters):
 if uploaded_file:
     try:
         # Load and validate data
-        df = pd.replace(df, {'grouping criteria': {'average': 'mean'}}) # Replaced original line
+        df = pd.read_excel(uploaded_file)
+        
+        # This line caused the error 'pandas' has no attribute 'replace'
+        # It's also redundant because the next line does the same thing more robustly.
+        # df = pd.replace(df, {'grouping criteria': {'average': 'mean'}}) 
         
         if not validate_data(df):
             st.stop()
@@ -1052,10 +1056,12 @@ if uploaded_file:
                         has_attr1 = kpi_df_specific['attribute 1'].notna().any() and kpi_df_specific['attribute 1'].ne("").any()
                         has_attr2 = kpi_df_specific['attribute 2'].notna().any() and kpi_df_specific['attribute 2'].ne("").any()
 
+                        # Flag to track if any table/chart was successfully generated for this KPI
+                        kpi_data_displayed = False
+
                         if has_attr1 and has_attr2:
                             # Iterate through unique values of attribute 1
                             unique_attr1_values = kpi_df_specific['attribute 1'].dropna().unique()
-                            found_data_for_kpi_attributes = False # Flag to check if any sub-table/chart is generated
                             for attr1_val in sorted(unique_attr1_values):
                                 # Filter for the current attribute 1 value for both reports
                                 sub_kpi_df_1_filtered = kpi_df_1_filtered[kpi_df_1_filtered['attribute 1'] == attr1_val]
@@ -1083,23 +1089,23 @@ if uploaded_file:
 
 
                                 if not sub_comparison_table_df.empty:
-                                    found_data_for_kpi_attributes = True # Mark that we found data and will generate
+                                    kpi_data_displayed = True # Set flag to True if anything is displayed
                                     st.markdown(f"#### {kpi_df_specific.columns[2].replace('attribute ', '')}: {attr1_val}") # Dynamically get attr1 label, removed "Attribute " prefix
                                     st.dataframe(sub_comparison_table_df, use_container_width=True, hide_index=True)
 
                                     # Create chart for this sub-comparison
-                                    melted_sub_df = sub_comparison_table_df.melt(id_vars=[kpi_df_specific.columns[3].replace('attribute ', '')], # Use the renamed column
+                                    melted_sub_df = sub_comparison_table_df.melt(id_vars=[sub_comparison_table_df.columns[0]], # Use the renamed column
                                                                             value_vars=[filters_1['period_label'], filters_2['period_label']],
                                                                             var_name='Period', value_name='Value')
                                     
                                     fig_sub_comp = px.bar(
                                         melted_sub_df, 
-                                        x=kpi_df_specific.columns[3].replace('attribute ', ''), # Use the renamed column as x-axis, removed "attribute " prefix
+                                        x=sub_comparison_table_df.columns[0], # Use the renamed column as x-axis
                                         y='Value', 
                                         color='Period', 
                                         barmode='group',
-                                        title=f"Comparison for {kpi_name_selected} ({attr1_val}) by {kpi_df_specific.columns[3].replace('attribute ', '')}", # Modified title, removed "attribute " prefix
-                                        labels={'Value': 'KPI Value', kpi_df_specific.columns[3].replace('attribute ', ''): kpi_df_specific.columns[3].replace('attribute ', '')}, # Modified label, removed "attribute " prefix
+                                        title=f"Comparison for {kpi_name_selected} ({attr1_val}) by {sub_comparison_table_df.columns[0]}", # Modified title, removed "attribute " prefix
+                                        labels={'Value': 'KPI Value', sub_comparison_table_df.columns[0]: sub_comparison_table_df.columns[0]}, # Modified label, removed "attribute " prefix
                                         color_discrete_map={filters_1['period_label']: 'blue', filters_2['period_label']: 'red'},
                                         template='plotly_white'
                                     )
@@ -1183,6 +1189,7 @@ if uploaded_file:
 
 
                         if not comparison_table_df.empty:
+                            kpi_data_displayed = True # Set flag to True if anything is displayed
                             st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
 
                             # --- Create Comparison Chart ---
@@ -1191,6 +1198,7 @@ if uploaded_file:
                             
                             if has_attr1 and has_attr2:
                                 # This section is handled by the attribute1 loop above.
+                                # No general chart here for the top level of 2-attribute KPIs.
                                 pass 
                             elif has_attr1:
                                 melted_df = comparison_table_df.melt(id_vars=[comparison_table_df.columns[0]], # Use the renamed attribute column
@@ -1245,17 +1253,12 @@ if uploaded_file:
                                     font=dict(size=12, color="black")
                                 )
                                 st.plotly_chart(fig_comp, use_container_width=True)
-                        # The 'else' for this outer 'if not comparison_table_df.empty' is causing the issue.
-                        # It's better to explicitly check if data was found in any attribute path.
-                        
-                        # This part of the code below was causing the redundant error message.
-                        # We only print the "Could not generate" message if no data was actually found/processed
-                        # through any of the attribute paths (has_attr1 and has_attr2, has_attr1, has_attr2, else).
-                        
-                        # No general 'else' here, the specific st.info messages inside the branches should be enough.
                         
                         st.markdown("---") # Separator between KPI comparisons
-            
+                    
+                    if not kpi_data_displayed: # If after iterating through all KPIs, nothing was displayed
+                        st.info("No comparison data could be generated for the selected KPIs given the chosen periods. Please check your filters and data.")
+
     except Exception as e:
         st.error(f"❌ Error processing file: {str(e)}")
         st.info("Please check your file format and try again.")

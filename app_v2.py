@@ -219,7 +219,7 @@ def apply_filters(df, filters):
 
 def display_summary_cards_streamlit(df, filters):
     """Displays KPI summary cards in Streamlit columns."""
-   filtered_df = apply_filters(df, filters)
+     filtered_df = apply_filters(df, filters)
     
     if filtered_df.empty:
         return # Nothing to display

@@ -211,12 +211,12 @@ def apply_filters(df, filters):
         else:
             filtered_df = filtered_df[filtered_df['month'].isin(MONTH_ORDER[6:])]
     
-    # Department filter
+    # Department filter (only applied if 'department' key is present in filters and not "All Departments")
     if filters.get('department') and filters['department'] != "All Departments":
         filtered_df = filtered_df[filtered_df['department'] == filters['department']]
 
-    # KPI Name filter - NEW
-    if filters.get('kpi_name') and filters['kpi_name'] != ["All KPIs"]:
+    # KPI Name filter
+    if filters.get('kpi_name') and filters['kpi_name'] != ["All KPIs"] and filters['kpi_name'] is not None:
         filtered_df = filtered_df[filtered_df['kpi name'].isin(filters['kpi_name'])]
     
     return filtered_df
@@ -828,7 +828,7 @@ if uploaded_file:
                                     
                                     for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values:
                                         kpi_id, kpi_name, group_type = kpi_data
-                                        kpi_df = dept_df[dept_df['kpi id'] == kpi_id] # Fixed: ensure dept_df is used for filtering
+                                        kpi_df = dept_df[dept_df['kpi id'] == kpi_id] 
                                         
                                         if group_type == "sum":
                                             total_value = format_value(kpi_df['value'].sum(), group_type)
@@ -891,7 +891,114 @@ if uploaded_file:
 
         with tabs[1]:
             st.header("🔍 KPI Comparison")
-            st.info("🚧 KPI comparison tools coming soon!")
+            # All available KPI names for comparison
+            all_kpi_names_comparison = sorted(df['kpi name'].dropna().unique().tolist())
+
+            # Columns for comparison filters
+            comp_col1, comp_col2 = st.columns(2)
+
+            # --- Report 1 Filters (Left Side) ---
+            with comp_col1:
+                st.subheader("Report 1 Filters")
+                report_type_1 = st.selectbox("Report Type 1", ["Monthly", "Quarter", "Half Annual", "Annual"], key="report_type_1")
+                selected_year_1 = st.selectbox("Year 1", sorted(df['year'].dropna().unique(), reverse=True), key="year_1")
+                
+                selected_month_1 = None
+                selected_quarter_1 = None
+                selected_half_1 = None
+
+                if report_type_1 == "Monthly":
+                    available_months_1 = sorted(df[df['year'] == selected_year_1]['month'].dropna().unique(), key=lambda x: MONTH_ORDER.index(x) if x in MONTH_ORDER else 999)
+                    selected_month_1 = st.selectbox("Month 1", available_months_1, key="month_1")
+                elif report_type_1 == "Quarter":
+                    available_quarters_1 = sorted(df[df['year'] == selected_year_1]['quarter'].dropna().unique())
+                    selected_quarter_1 = st.selectbox("Quarter 1", available_quarters_1, key="quarter_1")
+                elif report_type_1 == "Half Annual":
+                    selected_half_1 = st.selectbox("Half 1", ["H1", "H2"], key="half_1")
+                
+                selected_kpi_names_1 = st.multiselect("KPI Name (Report 1)", all_kpi_names_comparison, default=all_kpi_names_comparison[0] if all_kpi_names_comparison else [], key="kpi_name_1")
+
+                filters_1 = {
+                    'report_type': report_type_1,
+                    'year': selected_year_1,
+                    'month': selected_month_1,
+                    'quarter': selected_quarter_1,
+                    'half': selected_half_1,
+                    'department': "All Departments", # No department filter as per instruction
+                    'kpi_name': selected_kpi_names_1
+                }
+
+            # --- Report 2 Filters (Right Side) ---
+            with comp_col2:
+                st.subheader("Report 2 Filters")
+                report_type_2 = st.selectbox("Report Type 2", ["Monthly", "Quarter", "Half Annual", "Annual"], key="report_type_2")
+                selected_year_2 = st.selectbox("Year 2", sorted(df['year'].dropna().unique(), reverse=True), key="year_2")
+                
+                selected_month_2 = None
+                selected_quarter_2 = None
+                selected_half_2 = None
+
+                if report_type_2 == "Monthly":
+                    available_months_2 = sorted(df[df['year'] == selected_year_2]['month'].dropna().unique(), key=lambda x: MONTH_ORDER.index(x) if x in MONTH_ORDER else 999)
+                    selected_month_2 = st.selectbox("Month 2", available_months_2, key="month_2")
+                elif report_type_2 == "Quarter":
+                    available_quarters_2 = sorted(df[df['year'] == selected_year_2]['quarter'].dropna().unique())
+                    selected_quarter_2 = st.selectbox("Quarter 2", available_quarters_2, key="quarter_2")
+                elif report_type_2 == "Half Annual":
+                    selected_half_2 = st.selectbox("Half 2", ["H1", "H2"], key="half_2")
+                
+                selected_kpi_names_2 = st.multiselect("KPI Name (Report 2)", all_kpi_names_comparison, default=all_kpi_names_comparison[0] if all_kpi_names_comparison else [], key="kpi_name_2")
+
+                filters_2 = {
+                    'report_type': report_type_2,
+                    'year': selected_year_2,
+                    'month': selected_month_2,
+                    'quarter': selected_quarter_2,
+                    'half': selected_half_2,
+                    'department': "All Departments", # No department filter as per instruction
+                    'kpi_name': selected_kpi_names_2
+                }
+
+            st.markdown("---") # Separator between filters and comparison results
+            compare_button = st.button("Compare KPIs", type="primary", key="compare_button")
+
+            if compare_button:
+                st.subheader("Comparison Results")
+                col_res1, col_res2 = st.columns(2)
+
+                with col_res1:
+                    st.markdown("### Report 1")
+                    comp_report_df_1 = apply_filters(df, filters_1)
+                    if comp_report_df_1.empty:
+                        st.warning("No data for Report 1 based on selected filters.")
+                    else:
+                        for kpi_name in selected_kpi_names_1:
+                            kpi_comp_df = comp_report_df_1[comp_report_df_1['kpi name'] == kpi_name]
+                            if not kpi_comp_df.empty:
+                                group_type = kpi_comp_df['grouping criteria'].iloc[0]
+                                total_value = format_value(kpi_comp_df['value'].sum() if group_type == 'sum' else kpi_comp_df['value'].mean(), group_type)
+                                st.markdown(f"**{kpi_name} (Total: {total_value})**")
+                                fig = create_chart(kpi_comp_df, kpi_name, group_type)
+                                if fig:
+                                    st.plotly_chart(fig, use_container_width=True)
+                                st.markdown("---")
+
+                with col_res2:
+                    st.markdown("### Report 2")
+                    comp_report_df_2 = apply_filters(df, filters_2)
+                    if comp_report_df_2.empty:
+                        st.warning("No data for Report 2 based on selected filters.")
+                    else:
+                        for kpi_name in selected_kpi_names_2:
+                            kpi_comp_df = comp_report_df_2[comp_report_df_2['kpi name'] == kpi_name]
+                            if not kpi_comp_df.empty:
+                                group_type = kpi_comp_df['grouping criteria'].iloc[0]
+                                total_value = format_value(kpi_comp_df['value'].sum() if group_type == 'sum' else kpi_comp_df['value'].mean(), group_type)
+                                st.markdown(f"**{kpi_name} (Total: {total_value})**")
+                                fig = create_chart(kpi_comp_df, kpi_name, group_type)
+                                if fig:
+                                    st.plotly_chart(fig, use_container_width=True)
+                                st.markdown("---")
             
     except Exception as e:
         st.error(f"❌ Error processing file: {str(e)}")

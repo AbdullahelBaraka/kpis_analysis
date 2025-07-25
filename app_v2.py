@@ -12,7 +12,7 @@ import os # To check OS for wkhtmltopdf path
 # Page config
 st.set_page_config(page_title="Horus Hospital KPIs", layout="wide", initial_sidebar_state="expanded")
 
-# Enhanced CSS styling
+# Enhanced CSS styling for Streamlit display
 st.markdown("""
     <style>
         /* Main container styling */
@@ -219,7 +219,7 @@ def apply_filters(df, filters):
 
 def display_summary_cards_streamlit(df, filters):
     """Displays KPI summary cards in Streamlit columns."""
-    filtered_df = apply_filters(df, filters) # This line needs to be de-indented
+    filtered_df = apply_filters(df, filters) 
     
     if filtered_df.empty:
         return # Nothing to display
@@ -516,7 +516,8 @@ def get_pdfkit_config():
         st.error(f"Error configuring wkhtmltopdf. Please ensure it is installed and the path is correct: {e}")
         st.info("If running locally, download wkhtmltopdf from https://wkhtmltopdf.org/downloads.html")
         st.info("If deploying on Streamlit Cloud, remember to add 'wkhtmltopdf' to packages.txt.")
-        st.stop()
+        st.stop() 
+
 def generate_dashboard_html(df, filters):
     """Generates the full HTML content of the dashboard for PDF conversion."""
     
@@ -557,6 +558,13 @@ def generate_dashboard_html(df, filters):
         th { background-color: #f0f2f6; font-weight: bold; }
         .plotly-chart-img { max-width: 100%; height: auto; display: block; margin: 1rem auto; } /* Style for embedded chart images */
         hr { border: 0; height: 1px; background-color: #ddd; margin: 2rem 0; }
+
+        /* Custom styling for KPI Name (h3) */
+        h3 {
+            font-size: 1.3em; /* Adjusted to be between h2 and h4 */
+            font-weight: bold;
+            color: #333; /* Inherit or specify a color */
+        }
     </style>
     """
 
@@ -716,8 +724,8 @@ if uploaded_file:
                     else:
                         st.success(f"📈 Dashboard generated with {len(report_df)} records")
                         
-                        # Display summary cards in Streamlit
-                        display_summary_cards_streamlit(df, filters) 
+                        # Display summary cards in Streamlit - COMMENTED OUT THIS CALL TO REMOVE FROM UI
+                        # display_summary_cards_streamlit(df, filters) 
                         
                         # Department overview
                         for dept in sorted(report_df['department'].dropna().unique()):
@@ -839,4 +847,3 @@ else:
     })
     
     st.dataframe(sample_data, use_container_width=True)
-

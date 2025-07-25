@@ -606,7 +606,8 @@ def generate_dashboard_html(df, filters):
             <h2>🏢 {dept} Department</h2>
         </div>
         """
-        dept_df = report_df[dept_df['department'] == dept]
+        # Corrected line: filter report_df instead of dept_df
+        dept_df = report_df[report_df['department'] == dept]
 
         for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values:
             kpi_id, kpi_name, group_type = kpi_data
@@ -736,7 +737,8 @@ if uploaded_file:
                                     </div>
                                 """, unsafe_allow_html=True)
                                 
-                                dept_df = report_df[dept_df['department'] == dept]
+                                # Corrected line: filter report_df instead of dept_df
+                                dept_df = report_df[report_df['department'] == dept]
                                 
                                 # Show KPIs for this department
                                 for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values:

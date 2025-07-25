@@ -214,6 +214,10 @@ def apply_filters(df, filters):
     # Department filter
     if filters.get('department') and filters['department'] != "All Departments":
         filtered_df = filtered_df[filtered_df['department'] == filters['department']]
+
+    # KPI Name filter - NEW
+    if filters.get('kpi_name') and filters['kpi_name'] != ["All KPIs"]:
+        filtered_df = filtered_df[filtered_df['kpi name'].isin(filters['kpi_name'])]
     
     return filtered_df
 
@@ -695,6 +699,11 @@ if uploaded_file:
             with col2:
                 selected_year = st.selectbox("Year", sorted(df['year'].dropna().unique(), reverse=True))
             
+            # KPI Name filter - NEW
+            with col3: # Using col3 for KPI Name filter, as month/quarter/half are dynamic
+                all_kpi_names = ["All KPIs"] + sorted(df['kpi name'].dropna().unique().tolist())
+                selected_kpi_names = st.multiselect("KPI Name", all_kpi_names, default="All KPIs")
+            
             with col5:
                 departments = ["All Departments"] + sorted(df['department'].dropna().unique().tolist())
                 selected_department = st.selectbox("Department", departments)
@@ -702,17 +711,18 @@ if uploaded_file:
             # Dynamic filter based on report type
             selected_month = selected_quarter = selected_half = None
             
+            # NOTE: Adjusted column for month/quarter/half to col4 as col3 is now KPI Name filter
             if report_type == "Monthly":
-                with col3:
+                with col4: 
                     available_months = sorted(df[df['year'] == selected_year]['month'].dropna().unique(),
                                               key=lambda x: MONTH_ORDER.index(x) if x in MONTH_ORDER else 999)
                     selected_month = st.selectbox("Month", available_months)
             elif report_type == "Quarter":
-                with col3:
+                with col4: 
                     available_quarters = sorted(df[df['year'] == selected_year]['quarter'].dropna().unique())
                     selected_quarter = st.selectbox("Quarter", available_quarters)
             elif report_type == "Half Annual":
-                with col3:
+                with col4: 
                     selected_half = st.selectbox("Half", ["H1", "H2"])
             
             # Create filters dictionary
@@ -722,7 +732,8 @@ if uploaded_file:
                 'month': selected_month,
                 'quarter': selected_quarter,
                 'half': selected_half,
-                'department': selected_department
+                'department': selected_department,
+                'kpi_name': selected_kpi_names # Add new KPI name filter
             }
             
             # Use a session state variable to store if dashboard is generated
@@ -746,75 +757,112 @@ if uploaded_file:
                         # display_summary_cards_streamlit(df, filters) 
                         
                         # Department overview
-                        for dept in sorted(report_df['department'].dropna().unique()):
-                            with st.container():
-                                st.markdown(f"""
-                                    <div class="department-section">
-                                        <h3>🏢 {dept} Department</h3>
-                                    </div>
-                                """, unsafe_allow_html=True)
+                        # If a specific KPI is selected, only show that KPI, not department overview
+                        # If "All KPIs" or multiple KPIs are selected, proceed with department overview
+                        
+                        # Determine which KPIs to iterate over for display
+                        kpis_to_display = sorted(report_df['kpi id'].unique().tolist())
+                        if "All KPIs" not in selected_kpi_names and selected_kpi_names:
+                            # Filter the display to only selected KPIs if not "All KPIs"
+                            # Ensure iteration respects selected_kpi_names
+                            report_df = report_df[report_df['kpi name'].isin(selected_kpi_names)]
+                            
+                        # If specific KPI(s) selected and there's only one department affected, maybe flatten?
+                        # For now, keep iterating by department for consistency.
+                        
+                        displayed_departments = sorted(report_df['department'].dropna().unique())
+                        
+                        if selected_kpi_names and "All KPIs" not in selected_kpi_names and len(selected_kpi_names) == 1:
+                            # If only one KPI is selected, flatten the view a bit
+                            st.markdown(f"## Selected KPI: {selected_kpi_names[0]}")
+                            kpi_id_selected = report_df[report_df['kpi name'] == selected_kpi_names[0]]['kpi id'].iloc[0]
+                            kpi_name_selected = selected_kpi_names[0]
+                            group_type_selected = report_df[report_df['kpi name'] == selected_kpi_names[0]]['grouping criteria'].iloc[0]
+
+                            kpi_df_selected = report_df[report_df['kpi id'] == kpi_id_selected]
+
+                            if group_type_selected == "sum":
+                                total_value = format_value(kpi_df_selected['value'].sum(), group_type_selected)
+                            else:
+                                total_value = format_value(kpi_df_selected['value'].mean(), group_type_selected)
+                            
+                            with st.expander(f"📊 {kpi_name_selected} (Total: {total_value})", expanded=True):
+                                pivot_result = create_pivot_table(kpi_df_selected, report_type, group_type_selected)
+                                if isinstance(pivot_result, list):
+                                    for attr1, attr1_total, pivot in pivot_result:
+                                        st.markdown(f"**{attr1} (Total: {attr1_total})**")
+                                        column_config = {}
+                                        for col in pivot.columns:
+                                            if col != pivot.columns[0]:
+                                                column_config[col] = st.column_config.NumberColumn(
+                                                    col, format="%d" if pivot[col].dtype == 'int64' else "%.1f"
+                                                )
+                                            else:
+                                                column_config[col] = st.column_config.TextColumn(col)
+                                        st.dataframe(pivot, use_container_width=True, hide_index=True, column_config=column_config)
+                                else:
+                                    column_config = {}
+                                    for col in pivot_result.columns:
+                                        if col != pivot_result.columns[0]:
+                                            column_config[col] = st.column_config.NumberColumn(
+                                                col, format="%d" if pivot_result[col].dtype == 'int64' else "%.1f"
+                                            )
+                                        else:
+                                            column_config[col] = st.column_config.TextColumn(col)
+                                    st.dataframe(pivot_result, use_container_width=True, hide_index=True, column_config=column_config)
                                 
-                                # Corrected line: filter report_df instead of dept_df
-                                dept_df = report_df[report_df['department'] == dept]
-                                
-                                # Show KPIs for this department
-                                for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values:
-                                    kpi_id, kpi_name, group_type = kpi_data
-                                    kpi_df = dept_df[dept_df['kpi id'] == kpi_id]
+                                fig_to_display = create_chart(kpi_df_selected, kpi_name_selected, group_type_selected)
+                                if fig_to_display:
+                                    st.plotly_chart(fig_to_display, use_container_width=True)
+
+                        else: # Default behavior: iterate through departments and KPIs
+                            for dept in displayed_departments:
+                                with st.container():
+                                    st.markdown(f"""
+                                        <div class="department-section">
+                                            <h3>🏢 {dept} Department</h3>
+                                        </div>
+                                    """, unsafe_allow_html=True)
                                     
-                                    # Calculate total for display
-                                    if group_type == "sum":
-                                        total_value = format_value(kpi_df['value'].sum(), group_type)
-                                    else:
-                                        total_value = format_value(kpi_df['value'].mean(), group_type)
+                                    dept_df = report_df[report_df['department'] == dept]
                                     
-                                    with st.expander(f"📊 {kpi_name} (Total: {total_value})", expanded=True):
-                                        # Create pivot table
-                                        pivot_result = create_pivot_table(kpi_df, report_type, group_type)
+                                    for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values:
+                                        kpi_id, kpi_name, group_type = kpi_data
+                                        kpi_df = dept_df[dept_df['kpi id'] == kpi_id]
                                         
-                                        if isinstance(pivot_result, list):
-                                            # Two attributes case
-                                            for attr1, attr1_total, pivot in pivot_result:
-                                                st.markdown(f"**{attr1} (Total: {attr1_total})**")
-                                                
+                                        if group_type == "sum":
+                                            total_value = format_value(kpi_df['value'].sum(), group_type)
+                                        else:
+                                            total_value = format_value(kpi_df['value'].mean(), group_type)
+                                        
+                                        with st.expander(f"📊 {kpi_name} (Total: {total_value})", expanded=True):
+                                            pivot_result = create_pivot_table(kpi_df, report_type, group_type)
+                                            if isinstance(pivot_result, list):
+                                                for attr1, attr1_total, pivot in pivot_result:
+                                                    st.markdown(f"**{attr1} (Total: {attr1_total})**")
+                                                    column_config = {}
+                                                    for col in pivot.columns:
+                                                        if col != pivot.columns[0]:
+                                                            column_config[col] = st.column_config.NumberColumn(
+                                                                col, format="%d" if pivot[col].dtype == 'int64' else "%.1f"
+                                                            )
+                                                        else:
+                                                            column_config[col] = st.column_config.TextColumn(col)
+                                                    st.dataframe(pivot, use_container_width=True, hide_index=True, column_config=column_config)
+                                            else:
                                                 column_config = {}
-                                                for col in pivot.columns:
-                                                    if col != pivot.columns[0]:
+                                                for col in pivot_result.columns:
+                                                    if col != pivot_result.columns[0]:
                                                         column_config[col] = st.column_config.NumberColumn(
-                                                            col, format="%d" if pivot[col].dtype == 'int64' else "%.1f"
+                                                            col, format="%d" if pivot_result[col].dtype == 'int64' else "%.1f"
                                                         )
                                                     else:
                                                         column_config[col] = st.column_config.TextColumn(col)
-                                                
-                                                st.dataframe(
-                                                    pivot,
-                                                    use_container_width=True,
-                                                    hide_index=True,
-                                                    column_config=column_config
-                                                )
-                                        else:
-                                            # Single or no attribute case
-                                            column_config = {}
-                                            for col in pivot_result.columns:
-                                                if col != pivot_result.columns[0]:
-                                                    column_config[col] = st.column_config.NumberColumn(
-                                                        col, format="%d" if pivot_result[col].dtype == 'int64' else "%.1f"
-                                                    )
-                                                else:
-                                                    column_config[col] = st.column_config.TextColumn(col)
+                                                st.dataframe(pivot_result, use_container_width=True, hide_index=True, column_config=column_config)
                                             
-                                            st.dataframe(
-                                                pivot_result,
-                                                use_container_width=True,
-                                                hide_index=True,
-                                                column_config=column_config
-                                            )
-                                        
-                                        # Create chart for Streamlit display
-                                        fig_to_display = create_chart(kpi_df, kpi_name, group_type)
-                                        
-                                        if fig_to_display:
-                                            st.plotly_chart(fig_to_display, use_container_width=True)
+                                            fig_to_display = create_chart(kpi_df, kpi_name, group_type)
+                                            if fig_to_display:
+                                                st.plotly_chart(fig_to_display, use_container_width=True)
                         
                         # Add a download button for PDF report
                         st.markdown("---") # Separator before download button

@@ -442,7 +442,8 @@ def create_chart(kpi_df, kpi_name, group_type):
             color='attribute 2',
             barmode='group',
             title=f"{kpi_name} by Attributes",
-            labels={'value': 'KPI Value', 'attribute 1': 'Primary Attribute', 'attribute 2': 'Secondary Attribute'}
+            labels={'value': 'KPI Value', 'attribute 1': 'Primary Attribute', 'attribute 2': 'Secondary Attribute'},
+            color_discrete_sequence=px.colors.qualitative.D3 # Use a distinct qualitative color scale
         )
     elif has_attr1:
         chart_df = kpi_df.groupby('attribute 1')['value'].agg(aggfunc).reset_index()
@@ -486,21 +487,16 @@ def create_chart(kpi_df, kpi_name, group_type):
     if fig:
         # Add a white background to the figure to ensure visibility when exported
         fig.update_layout(
-            paper_bgcolor='white',  # Background of the entire figure
-            plot_bgcolor='white',   # Background of the plotting area
+            template='plotly_white', # Set template to plotly_white for clean backgrounds
             margin=dict(l=0, r=0, t=50, b=0),
             height=400,
             showlegend=True,
             font=dict(size=12, color="black") # Ensure text is black
         )
-        # Set bar/line colors explicitly if needed, or rely on default Plotly colors against white
-        # For grouped bars, ensure distinct colors if the default ones are not visible
-        if has_attr1 and has_attr2: # Example: ensure bar colors are not black
-             fig.update_traces(marker_color=px.colors.qualitative.Plotly) # Use a standard qualitative color scale
-        elif has_attr1 or has_attr2: # For single attribute bars, default 'viridis' is usually fine
-             pass # Viridis is fine on white background
-        elif len(kpi_df['month'].unique()) > 1: # For line charts
-            fig.update_traces(line_color='blue') # Set line color explicitly
+        
+        # For line charts, explicitly set a common line color for visibility
+        if not (has_attr1 or has_attr2) and len(kpi_df['month'].unique()) > 1:
+            fig.update_traces(line_color='blue') # Set line color explicitly for single line charts
         
     return fig
 

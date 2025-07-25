@@ -2,5 +2,4 @@ streamlit
 pandas
 plotly
 kaleido
-weasyprint
-
+xhtml2pdf

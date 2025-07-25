@@ -10,17 +10,19 @@ from datetime import datetime
 @st.cache_data
 def load_data():
     df = pd.read_excel("kpi_data.xlsx")
+    df.columns = [col.strip() for col in df.columns]  # Normalize column names
     return df
 
 def filter_data(df, filters):
     for key, value in filters.items():
-        if value and value != "All":
+        if value and value != "All" and key in df.columns:
             df = df[df[key] == value]
     return df
 
 # ---------- Chart Generation ----------
 def generate_chart(df):
-    if df.empty:
+    required_cols = ["Department", "KPI Value", "KPI Name"]
+    if df.empty or not all(col in df.columns for col in required_cols):
         return None
     fig = px.bar(df, x="Department", y="KPI Value", color="KPI Name", barmode="group")
     fig.update_layout(title="KPI Report")
@@ -91,7 +93,14 @@ st.title("📊 KPI Dashboard")
 
 df = load_data()
 
-# Filters
+# Validate required columns
+required_columns = ["Department", "KPI Name", "KPI Value"]
+missing_cols = [col for col in required_columns if col not in df.columns]
+if missing_cols:
+    st.error(f"Missing required columns in data: {', '.join(missing_cols)}. Found columns: {', '.join(df.columns)}")
+    st.stop()
+
+# Filters (only after validation)
 departments = ["All"] + sorted(df["Department"].dropna().unique())
 kpis = ["All"] + sorted(df["KPI Name"].dropna().unique())
 

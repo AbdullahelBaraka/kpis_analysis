@@ -341,7 +341,7 @@ def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
                 sub_df,
                 index='attribute 2',
                 columns='month',
-                values='value', [cite: 34]
+                values='value',
                 aggfunc=aggfunc,
                 fill_value=0
             )

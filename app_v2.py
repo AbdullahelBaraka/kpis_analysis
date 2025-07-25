@@ -484,12 +484,23 @@ def create_chart(kpi_df, kpi_name, group_type):
         # No chart if only one month and no attributes
     
     if fig:
+        # Add a white background to the figure to ensure visibility when exported
         fig.update_layout(
+            paper_bgcolor='white',  # Background of the entire figure
+            plot_bgcolor='white',   # Background of the plotting area
             margin=dict(l=0, r=0, t=50, b=0),
             height=400,
             showlegend=True,
-            font=dict(size=12)
+            font=dict(size=12, color="black") # Ensure text is black
         )
+        # Set bar/line colors explicitly if needed, or rely on default Plotly colors against white
+        # For grouped bars, ensure distinct colors if the default ones are not visible
+        if has_attr1 and has_attr2: # Example: ensure bar colors are not black
+             fig.update_traces(marker_color=px.colors.qualitative.Plotly) # Use a standard qualitative color scale
+        elif has_attr1 or has_attr2: # For single attribute bars, default 'viridis' is usually fine
+             pass # Viridis is fine on white background
+        elif len(kpi_df['month'].unique()) > 1: # For line charts
+            fig.update_traces(line_color='blue') # Set line color explicitly
         
     return fig
 

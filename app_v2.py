@@ -260,7 +260,7 @@ def display_summary_cards_streamlit(df, filters):
                 <h4>📋 Records</h4>
                 <div class="kpi-value">{total_records}</div>
             </div>
-        """, unsafe_allow_html=True)""
+        """, unsafe_allow_html=True)
 
 def get_summary_cards_html_for_pdf(df, filters):
     """Generates HTML string for KPI summary cards, suitable for PDF embedding."""

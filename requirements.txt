@@ -3,6 +3,6 @@ pandas
 numpy
 plotly
 openpyxl
-pdfkit # NEW
-kaleido # NEW
-Pillow #
+pdfkit
+kaleido
+Pillow

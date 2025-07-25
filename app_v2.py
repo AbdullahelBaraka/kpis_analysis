@@ -313,8 +313,11 @@ def get_summary_cards_html_for_pdf(df, filters):
     return f"""<div style="display:flex; justify-content:space-around; flex-wrap:wrap; margin-bottom: 2rem;">{summary_html}</div>"""
 
 
-def create_pivot_table(kpi_df, report_type, group_type):
-    """Create pivot table for KPI data"""
+def create_pivot_table(kpi_df, report_type, group_type, add_total_row=True):
+    """
+    Create pivot table for KPI data.
+    Now accepts an add_total_row boolean to conditionally include total rows.
+    """
     has_attr1 = kpi_df['attribute 1'].notna().any() and kpi_df['attribute 1'].ne("").any()
     has_attr2 = kpi_df['attribute 2'].notna().any() and kpi_df['attribute 2'].ne("").any()
     
@@ -323,20 +326,20 @@ def create_pivot_table(kpi_df, report_type, group_type):
     
     if has_attr1 and has_attr2:
         # Two attributes case
-        return create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type)
+        return create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type, add_total_row)
     elif has_attr1:
         # Single attribute 1 case
-        return create_single_attribute_pivot(kpi_df, 'attribute 1', report_type, aggfunc, group_type)
+        return create_single_attribute_pivot(kpi_df, 'attribute 1', report_type, aggfunc, group_type, add_total_row)
     elif has_attr2:
         # Single attribute 2 case
-        return create_single_attribute_pivot(kpi_df, 'attribute 2', report_type, aggfunc, group_type)
+        return create_single_attribute_pivot(kpi_df, 'attribute 2', report_type, aggfunc, group_type, add_total_row)
     else:
         # No attributes case
-        return create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type)
+        return create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type, add_total_row)
 
 
-def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
-    """Handle two attribute pivot tables and add a total row."""
+def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type, add_total_row):
+    """Handle two attribute pivot tables and conditionally add a total row."""
     results = []
     
     for attr1 in sorted(kpi_df['attribute 1'].dropna().unique()):
@@ -355,8 +358,9 @@ def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
             available_months = [m for m in MONTH_ORDER if m in pivot.columns]
             pivot = pivot.reindex(columns=available_months)
             
-            # Add 'Total' column for rows
-            pivot['Total'] = pivot.apply(lambda x: x.sum() if group_type == 'sum' else x.mean(), axis=1)
+            if add_total_row:
+                # Add 'Total' column for rows
+                pivot['Total'] = pivot.apply(lambda x: x.sum() if group_type == 'sum' else x.mean(), axis=1)
         else:
             pivot = pd.pivot_table(
                 sub_df,
@@ -365,16 +369,16 @@ def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
                 aggfunc=aggfunc,
                 fill_value=0
             )
-            pivot.columns = ['Total']
+            if add_total_row:
+                pivot.columns = ['Total'] # If adding total row, rename the single value column to 'Total'
         
-        # Calculate grand total row for the entire sub-pivot
-        grand_total_row = pd.DataFrame([{
-            'attribute 2': 'Total',
-            **{col: (pivot[col].sum() if group_type == 'sum' else pivot[col].mean()) for col in pivot.columns if col != 'attribute 2'}
-        }])
-        
-        pivot = pd.concat([pivot, grand_total_row], ignore_index=True)
-        pivot = pivot.reset_index(drop=True)
+        if add_total_row:
+            # Calculate grand total row for the entire sub-pivot
+            grand_total_row_values = {col: (pivot[col].sum() if group_type == 'sum' else pivot[col].mean()) for col in pivot.columns if col != 'attribute 2'}
+            grand_total_row = pd.DataFrame([{'attribute 2': 'Total', **grand_total_row_values}])
+            
+            pivot = pd.concat([pivot, grand_total_row], ignore_index=True)
+            pivot = pivot.reset_index(drop=True)
         
         # Format values
         for col in pivot.columns[1:]:
@@ -387,8 +391,8 @@ def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
     
     return results
 
-def create_single_attribute_pivot(kpi_df, attribute, report_type, aggfunc, group_type):
-    """Handle single attribute pivot tables and add a total row."""
+def create_single_attribute_pivot(kpi_df, attribute, report_type, aggfunc, group_type, add_total_row):
+    """Handle single attribute pivot tables and conditionally add a total row."""
     if report_type != "Monthly":
         pivot = pd.pivot_table(
             kpi_df,
@@ -401,8 +405,10 @@ def create_single_attribute_pivot(kpi_df, attribute, report_type, aggfunc, group
         # Reorder columns by month order
         available_months = [m for m in MONTH_ORDER if m in pivot.columns]
         pivot = pivot.reindex(columns=available_months)
-        # Add 'Total' column for rows
-        pivot['Total'] = pivot.apply(lambda x: x.sum() if group_type == 'sum' else x.mean(), axis=1)
+        
+        if add_total_row:
+            # Add 'Total' column for rows
+            pivot['Total'] = pivot.apply(lambda x: x.sum() if group_type == 'sum' else x.mean(), axis=1)
     else:
         pivot = pd.pivot_table(
             kpi_df,
@@ -411,17 +417,21 @@ def create_single_attribute_pivot(kpi_df, attribute, report_type, aggfunc, group
             aggfunc=aggfunc,
             fill_value=0
         )
-        pivot.columns = ['Total']
+        if add_total_row:
+            pivot.columns = ['Total'] # If adding total row, rename the single value column to 'Total'
     
-    # Calculate a grand total row
-    grand_total_values = {
-        col: (pivot[col].sum() if group_type == 'sum' else pivot[col].mean())
-        for col in pivot.columns if col != attribute
-    }
-    grand_total_row = pd.DataFrame([{'attribute': 'Total', **grand_total_values}])
-    grand_total_row.rename(columns={'attribute': attribute}, inplace=True) # Ensure the attribute column name is consistent
+    if add_total_row:
+        # Calculate a grand total row
+        grand_total_values = {
+            col: (pivot[col].sum() if group_type == 'sum' else pivot[col].mean())
+            for col in pivot.columns if col != attribute
+        }
+        grand_total_row = pd.DataFrame([{'attribute': 'Total', **grand_total_values}])
+        grand_total_row.rename(columns={'attribute': attribute}, inplace=True) # Ensure the attribute column name is consistent
 
-    pivot = pd.concat([pivot.reset_index(), grand_total_row], ignore_index=True) # Reset index before concat to handle the attribute column
+        pivot = pd.concat([pivot.reset_index(), grand_total_row], ignore_index=True) # Reset index before concat to handle the attribute column
+    else:
+        pivot = pivot.reset_index() # Still reset index if not adding total row, for consistent structure
     
     # Format values
     for col in pivot.columns[1:]: # Skip the first column (attribute name)
@@ -429,8 +439,8 @@ def create_single_attribute_pivot(kpi_df, attribute, report_type, aggfunc, group
     
     return pivot
 
-def create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
-    """Handle no attribute pivot tables and ensure a 'Total' row is present."""
+def create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type, add_total_row):
+    """Handle no attribute pivot tables and conditionally ensure a 'Total' row is present."""
     if report_type != "Monthly":
         pivot = pd.pivot_table(
             kpi_df,
@@ -442,24 +452,25 @@ def create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
         # Reorder columns by month order
         available_months = [m for m in MONTH_ORDER if m in pivot.columns]
         pivot = pivot.reindex(columns=available_months)
-        pivot_total_value = pivot.sum().sum() if group_type == 'sum' else pivot.mean().mean() # Total of all months
         
-        # Create a single row DataFrame for the total
-        # This section was simplified as the existing logic handles the 'Total' row creation correctly
-        # for this specific case.
-        pivot.loc['Total'] = pivot.apply(lambda x: x.sum() if group_type == 'sum' else x.mean())
-        pivot = pivot.reset_index().rename(columns={'index': 'KPI Data'})
-        pivot['Overall Total'] = pivot.iloc[:, 1:].apply(lambda x: x.sum() if group_type == 'sum' else x.mean(), axis=1) # Calculate overall total for each row
-        
-        # Ensure the 'Total' row is correctly formatted
-        pivot.loc[pivot['KPI Data'] == 'Total', 'Overall Total'] = format_value(pivot_total_value, group_type)
+        if add_total_row:
+            pivot_total_value = pivot.sum().sum() if group_type == 'sum' else pivot.mean().mean() # Total of all months
+            pivot.loc['Total'] = pivot.apply(lambda x: x.sum() if group_type == 'sum' else x.mean())
+            pivot = pivot.reset_index().rename(columns={'index': 'KPI Data'})
+            pivot['Overall Total'] = pivot.iloc[:, 1:].apply(lambda x: x.sum() if group_type == 'sum' else x.mean(), axis=1) # Calculate overall total for each row
+            # Ensure the 'Total' row is correctly formatted
+            pivot.loc[pivot['KPI Data'] == 'Total', 'Overall Total'] = format_value(pivot_total_value, group_type)
+        else:
+            pivot = pivot.reset_index().rename(columns={'index': 'KPI Data'})
+            # No 'Overall Total' column if not adding total row, or calculate for each data row if meaningful
+            pivot['Overall Total'] = pivot.iloc[:, 1:].apply(lambda x: x.sum() if group_type == 'sum' else x.mean(), axis=1) # Still useful for non-total rows
 
 
     else:
         total_value = kpi_df['value'].sum() if group_type == 'sum' else kpi_df['value'].mean()
-        # Create a DataFrame with a single row named "Total"
+        # Create a DataFrame
         pivot = pd.DataFrame({
-            'KPI Data': ['Total'],
+            'KPI Data': ['Total' if add_total_row else 'Data'], # Label as 'Total' if adding total row
             'Overall Total': [format_value(total_value, group_type)]
         })
     
@@ -708,8 +719,8 @@ def generate_dashboard_html(df, filters):
                 <h3>📊 {kpi_name} (Total: {total_value})</h3>
             """
 
-            # Create pivot table
-            pivot_result = create_pivot_table(kpi_df, filters['report_type'], group_type)
+            # Create pivot table (for PDF generation, we generally want total rows)
+            pivot_result = create_pivot_table(kpi_df, filters['report_type'], group_type, add_total_row=True)
 
             if isinstance(pivot_result, list): # Two attributes case
                 for attr1, attr1_total, pivot in pivot_result:
@@ -863,7 +874,8 @@ if uploaded_file:
                                 total_value = format_value(kpi_df_single['value'].mean(), group_type_single)
                             
                             with st.expander(f"📊 {kpi_name_selected_single} (Total: {total_value})", expanded=True):
-                                pivot_result = create_pivot_table(kpi_df_single, report_type, group_type_single)
+                                # Pass add_total_row=False for Dashboard tab
+                                pivot_result = create_pivot_table(kpi_df_single, report_type, group_type_single, add_total_row=False)
                                 if isinstance(pivot_result, list):
                                     for attr1, attr1_total, pivot in pivot_result:
                                         st.markdown(f"**{attr1} (Total: {attr1_total})**")
@@ -918,7 +930,8 @@ if uploaded_file:
                                             total_value = format_value(kpi_df['value'].mean(), group_type)
                                         
                                         with st.expander(f"📊 {kpi_name} (Total: {total_value})", expanded=True):
-                                            pivot_result = create_pivot_table(kpi_df, report_type, group_type)
+                                            # Pass add_total_row=False for Dashboard tab
+                                            pivot_result = create_pivot_table(kpi_df, report_type, group_type, add_total_row=False)
                                             if isinstance(pivot_result, list):
                                                 for attr1, attr1_total, pivot in pivot_result:
                                                     st.markdown(f"**{attr1} (Total: {attr1_total})**")
@@ -1144,12 +1157,22 @@ if uploaded_file:
 
                                 sub_comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 2', how='outer').fillna(0)
                                 sub_comparison_table_df['Change'] = sub_comparison_table_df[report2_col_name] - sub_comparison_table_df[report1_col_name]
+                                # No change to individual % Change calculation, only to the 'Total' row
                                 sub_comparison_table_df['% Change'] = (sub_comparison_table_df['Change'] / sub_comparison_table_df[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
                                 
                                 # Add 'Total' row to the sub_comparison_table_df
                                 total_row_values = {col: (sub_comparison_table_df[col].sum() if group_type == 'sum' else sub_comparison_table_df[col].mean()) for col in sub_comparison_table_df.columns if col not in ['attribute 2', '% Change']}
                                 total_row_values['attribute 2'] = 'Total'
-                                total_row_values['% Change'] = 'N/A' # % Change for total is usually not meaningful
+                                
+                                # Calculate % Change for the 'Total' row
+                                total_change_val = total_row_values.get('Change', 0)
+                                total_report1_val = total_row_values.get(report1_col_name, 0)
+                                if total_report1_val != 0:
+                                    total_pct_change = (total_change_val / total_report1_val) * 100
+                                    total_row_values['% Change'] = f"{total_pct_change:.1f}%"
+                                else:
+                                    total_row_values['% Change'] = 'N/A' if total_change_val != 0 else "0.0%" # If both are 0, it's 0% change
+
                                 sub_comparison_table_df = pd.concat([sub_comparison_table_df, pd.DataFrame([total_row_values])], ignore_index=True)
 
 
@@ -1224,7 +1247,16 @@ if uploaded_file:
                             # Add 'Total' row
                             total_row_values = {col: (comparison_table_df[col].sum() if group_type == 'sum' else comparison_table_df[col].mean()) for col in comparison_table_df.columns if col not in ['attribute 1', '% Change', 'KPI Name']}
                             total_row_values['attribute 1'] = 'Total'
-                            total_row_values['% Change'] = 'N/A'
+                            
+                            # Calculate % Change for the 'Total' row
+                            total_change_val = total_row_values.get('Change', 0)
+                            total_report1_val = total_row_values.get(report1_col_name, 0)
+                            if total_report1_val != 0:
+                                total_pct_change = (total_change_val / total_report1_val) * 100
+                                total_row_values['% Change'] = f"{total_pct_change:.1f}%"
+                            else:
+                                total_row_values['% Change'] = 'N/A' if total_change_val != 0 else "0.0%" # If both are 0, it's 0% change
+
                             total_row_values['KPI Name'] = kpi_name_selected
                             comparison_table_df = pd.concat([comparison_table_df, pd.DataFrame([total_row_values])], ignore_index=True)
 
@@ -1285,7 +1317,16 @@ if uploaded_file:
                             # Add 'Total' row
                             total_row_values = {col: (comparison_table_df[col].sum() if group_type == 'sum' else comparison_table_df[col].mean()) for col in comparison_table_df.columns if col not in ['attribute 2', '% Change', 'KPI Name']}
                             total_row_values['attribute 2'] = 'Total'
-                            total_row_values['% Change'] = 'N/A'
+                            
+                            # Calculate % Change for the 'Total' row
+                            total_change_val = total_row_values.get('Change', 0)
+                            total_report1_val = total_row_values.get(report1_col_name, 0)
+                            if total_report1_val != 0:
+                                total_pct_change = (total_change_val / total_report1_val) * 100
+                                total_row_values['% Change'] = f"{total_pct_change:.1f}%"
+                            else:
+                                total_row_values['% Change'] = 'N/A' if total_change_val != 0 else "0.0%" # If both are 0, it's 0% change
+
                             total_row_values['KPI Name'] = kpi_name_selected
                             comparison_table_df = pd.concat([comparison_table_df, pd.DataFrame([total_row_values])], ignore_index=True)
 

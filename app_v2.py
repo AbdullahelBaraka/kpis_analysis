@@ -217,93 +217,93 @@ def apply_filters(df, filters):
     
     return filtered_df
 
-##def display_summary_cards_streamlit(df, filters):
-  ##  """Displays KPI summary cards in Streamlit columns."""
-   ## filtered_df = apply_filters(df, filters)
+def display_summary_cards_streamlit(df, filters):
+    """Displays KPI summary cards in Streamlit columns."""
+   filtered_df = apply_filters(df, filters)
     
-    ##if filtered_df.empty:
-      ##  return # Nothing to display
+    if filtered_df.empty:
+        return # Nothing to display
     
-   ## col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = st.columns(4)
     
-    ##total_kpis = filtered_df['kpi id'].nunique()
-    ##with col1:
-      ##  st.markdown(f"""
-        ##    <div class="kpi-card">
-          ##      <h4>📊 Total KPIs</h4>
-            ##    <div class="kpi-value">{total_kpis}</div>
-            ##</div>
-        ##""", unsafe_allow_html=True)
+    total_kpis = filtered_df['kpi id'].nunique()
+    with col1:
+        st.markdown(f"""
+            <div class="kpi-card">
+                <h4>📊 Total KPIs</h4>
+                <div class="kpi-value">{total_kpis}</div>
+            </div>
+        """, unsafe_allow_html=True)
     
- ##   total_departments = filtered_df['department'].nunique()
- ##   with col2:
-   ##     st.markdown(f"""
-     ##       <div class="kpi-card">
-       ##         <h4>🏢 Departments</h4>
-         ##       <div class="kpi-value">{total_departments}</div>
-           ## </div>
-       ## """, unsafe_allow_html=True)
+    total_departments = filtered_df['department'].nunique()
+    with col2:
+        st.markdown(f"""
+            <div class="kpi-card">
+                <h4>🏢 Departments</h4>
+                <div class="kpi-value">{total_departments}</div>
+            </div>
+        """, unsafe_allow_html=True)
     
-   ## avg_value = filtered_df['value'].mean()
-   ## with col3:
-     ##   st.markdown(f"""
-       ##     <div class="kpi-card">
-         ##       <h4>📈 Avg Value</h4>
-           ##     <div class="kpi-value">{format_value(avg_value, 'average')}</div>
-           ## </div>
-      ##  """, unsafe_allow_html=True)
+    avg_value = filtered_df['value'].mean()
+    with col3:
+        st.markdown(f"""
+            <div class="kpi-card">
+                <h4>📈 Avg Value</h4>
+                <div class="kpi-value">{format_value(avg_value, 'average')}</div>
+            </div>
+        """, unsafe_allow_html=True)
     
-   ## total_records = len(filtered_df)
-   ## with col4:
-     ##   st.markdown(f"""
-       ##     <div class="kpi-card">
-         ##       <h4>📋 Records</h4>
-           ##     <div class="kpi-value">{total_records}</div>
-           ## </div>
-       ## """, unsafe_allow_html=True)""
+    total_records = len(filtered_df)
+    with col4:
+        st.markdown(f"""
+            <div class="kpi-card">
+                <h4>📋 Records</h4>
+                <div class="kpi-value">{total_records}</div>
+            </div>
+        """, unsafe_allow_html=True)""
 
-##def get_summary_cards_html_for_pdf(df, filters):
-  ##  """Generates HTML string for KPI summary cards, suitable for PDF embedding."""
-    ##filtered_df = apply_filters(df, filters)
+def get_summary_cards_html_for_pdf(df, filters):
+    """Generates HTML string for KPI summary cards, suitable for PDF embedding."""
+    filtered_df = apply_filters(df, filters)
     
-   ## if filtered_df.empty:
-     ##   return ""
+    if filtered_df.empty:
+        return ""
     
-   ## summary_html = ""
+    summary_html = ""
     
-   ## total_kpis = filtered_df['kpi id'].nunique()
-   ## summary_html += f"""
-     ##   <div class="kpi-card">
-       ##     <h4>📊 Total KPIs</h4>
-         ##   <div class="kpi-value">{total_kpis}</div>
-       ## </div>
-   ## """
+    total_kpis = filtered_df['kpi id'].nunique()
+    summary_html += f"""
+        <div class="kpi-card">
+            <h4>📊 Total KPIs</h4>
+            <div class="kpi-value">{total_kpis}</div>
+        </div>
+    """
     
-   ## total_departments = filtered_df['department'].nunique()
-   ## summary_html += f"""
-     ##   <div class="kpi-card">
-       ##     <h4>🏢 Departments</h4>
-         ##   <div class="kpi-value">{total_departments}</div>
-       ## </div>
-   ## """
+    total_departments = filtered_df['department'].nunique()
+    summary_html += f"""
+        <div class="kpi-card">
+            <h4>🏢 Departments</h4>
+            <div class="kpi-value">{total_departments}</div>
+        </div>
+    """
     
-   ## avg_value = filtered_df['value'].mean()
-   ## summary_html += f"""
-     ##   <div class="kpi-card">
-       ##     <h4>📈 Avg Value</h4>
-         ##   <div class="kpi-value">{format_value(avg_value, 'average')}</div>
-       ## </div>
-   ## """
+    avg_value = filtered_df['value'].mean()
+    summary_html += f"""
+        <div class="kpi-card">
+            <h4>📈 Avg Value</h4>
+            <div class="kpi-value">{format_value(avg_value, 'average')}</div>
+        </div>
+    """
     
-   ## total_records = len(filtered_df)
-   ## summary_html += f"""
-     ##   <div class="kpi-card">
-       ##     <h4>📋 Records</h4>
-         ##   <div class="kpi-value">{total_records}</div>
-       ## </div>
-   ## """
-   ## # Wrap in a flex container for PDF layout
-   ## return f"""<div style="display:flex; justify-content:space-around; flex-wrap:wrap; margin-bottom: 2rem;">{summary_html}</div>"""
+    total_records = len(filtered_df)
+    summary_html += f"""
+        <div class="kpi-card">
+            <h4>📋 Records</h4>
+            <div class="kpi-value">{total_records}</div>
+        </div>
+    """
+    # Wrap in a flex container for PDF layout
+    return f"""<div style="display:flex; justify-content:space-around; flex-wrap:wrap; margin-bottom: 2rem;">{summary_html}</div>"""
 
 
 def create_pivot_table(kpi_df, report_type, group_type):

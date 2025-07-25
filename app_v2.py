@@ -160,7 +160,7 @@ with st.sidebar.expander("📋 Required Excel Format", expanded=False):
 
 # Constants
 MONTH_ORDER = ["January", "February", "March", "April", "May", "June",
-               "July", "August", "September", "October", "November", "December"]
+               'July', 'August', 'September', 'October', 'November', 'December']
 QUARTER_MONTHS = {
     'Q1': ['January', 'February', 'March'],
     'Q2': ['April', 'May', 'June'],
@@ -1058,6 +1058,10 @@ if uploaded_file:
 
                         # Flag to track if any table/chart was successfully generated for this KPI
                         kpi_data_displayed = False # Initialize at the beginning of KPI loop
+                        
+                        # Initialize comparison_table_df and fig_comp to prevent NameError
+                        comparison_table_df = pd.DataFrame() 
+                        fig_comp = None 
 
                         if has_attr1 and has_attr2:
                             # Iterate through unique values of attribute 1
@@ -1145,6 +1149,38 @@ if uploaded_file:
                             comparison_table_df['KPI Name'] = kpi_name_selected
                             comparison_table_df.rename(columns={'attribute 1': kpi_df_specific.columns[2].replace('attribute ', '')}, inplace=True) # Removed "Attribute " prefix
 
+                            # Format numerical columns
+                            for col in [filters_1['period_label'], filters_2['period_label'], 'Change']:
+                                if col in comparison_table_df.columns:
+                                    comparison_table_df[col] = comparison_table_df[col].apply(lambda x: format_value(x, group_type))
+
+                            if not comparison_table_df.empty:
+                                kpi_data_displayed = True # Set flag to True if anything is displayed
+                                st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
+
+                                # --- Create Comparison Chart for has_attr1 ---
+                                melted_df = comparison_table_df.melt(id_vars=[comparison_table_df.columns[0]], # Use the renamed attribute column
+                                                                    value_vars=[filters_1['period_label'], filters_2['period_label']],
+                                                                    var_name='Period', value_name='Value')
+                                fig_comp = px.bar(
+                                    melted_df, 
+                                    x=melted_df.columns[0], # Use the renamed attribute column as x-axis
+                                    y='Value', 
+                                    color='Period', 
+                                    barmode='group',
+                                    title=f"Comparison for {kpi_name_selected} by {comparison_table_df.columns[0]}", # Modified title
+                                    labels={'Value': 'KPI Value', comparison_table_df.columns[0]: comparison_table_df.columns[0]}, # Modified label
+                                    color_discrete_map={filters_1['period_label']: 'blue', filters_2['period_label']: 'red'},
+                                    template='plotly_white'
+                                )
+                                fig_comp.update_layout(
+                                    margin=dict(l=0, r=0, t=50, b=0),
+                                    height=400,
+                                    showlegend=True,
+                                    font=dict(size=12, color="black")
+                                )
+                                st.plotly_chart(fig_comp, use_container_width=True)
+
 
                         elif has_attr2:
                             # Group by attribute 2
@@ -1164,8 +1200,40 @@ if uploaded_file:
                             comparison_table_df['KPI Name'] = kpi_name_selected
                             comparison_table_df.rename(columns={'attribute 2': kpi_df_specific.columns[3].replace('attribute ', '')}, inplace=True) # Removed "Attribute " prefix
 
+                            # Format numerical columns
+                            for col in [filters_1['period_label'], filters_2['period_label'], 'Change']:
+                                if col in comparison_table_df.columns:
+                                    comparison_table_df[col] = comparison_table_df[col].apply(lambda x: format_value(x, group_type))
 
-                        else:
+                            if not comparison_table_df.empty:
+                                kpi_data_displayed = True # Set flag to True if anything is displayed
+                                st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
+
+                                # --- Create Comparison Chart for has_attr2 ---
+                                melted_df = comparison_table_df.melt(id_vars=[comparison_table_df.columns[0]], # Use the renamed attribute column
+                                                                    value_vars=[filters_1['period_label'], filters_2['period_label']],
+                                                                    var_name='Period', value_name='Value')
+                                fig_comp = px.bar(
+                                    melted_df, 
+                                    x=melted_df.columns[0], # Use the renamed attribute column as x-axis
+                                    y='Value', 
+                                    color='Period', 
+                                    barmode='group',
+                                    title=f"Comparison for {kpi_name_selected} by {comparison_table_df.columns[0]}", # Modified title
+                                    labels={'Value': 'KPI Value', comparison_table_df.columns[0]: comparison_table_df.columns[0]}, # Modified label
+                                    color_discrete_map={filters_1['period_label']: 'blue', filters_2['period_label']: 'red'},
+                                    template='plotly_white'
+                                )
+                                fig_comp.update_layout(
+                                    margin=dict(l=0, r=0, t=50, b=0),
+                                    height=400,
+                                    showlegend=True,
+                                    font=dict(size=12, color="black")
+                                )
+                                st.plotly_chart(fig_comp, use_container_width=True)
+
+
+                        else: # No attributes
                             # No attributes, just aggregate the total KPI value for each period
                             total_val_1 = kpi_df_1_filtered['value'].agg(group_type) if not kpi_df_1_filtered.empty else 0
                             total_val_2 = kpi_df_2_filtered['value'].agg(group_type) if not kpi_df_2_filtered.empty else 0
@@ -1181,60 +1249,21 @@ if uploaded_file:
                                 'Change': [format_value(change, group_type)],
                                 '% Change': [pct_change_str]
                             })
-                        
-                        # Format numerical columns in the comparison table
-                        # Note: Period labels are now dynamic, so retrieve them
-                        report1_col_name = filters_1['period_label']
-                        report2_col_name = filters_2['period_label']
-
-                        for col in [report1_col_name, report2_col_name, 'Change']:
-                            if col in comparison_table_df.columns:
-                                comparison_table_df[col] = comparison_table_df[col].apply(lambda x: format_value(x, group_type))
-
-
-                        if not comparison_table_df.empty:
-                            kpi_data_displayed = True # Set flag to True if anything is displayed
-                            st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
-
-                            # --- Create Comparison Chart ---
-                            # Reshape for Plotly: 'Report 1 Value', 'Report 2 Value' need to be in one column 'Value'
-                            # and a new column 'Period' to distinguish them.
                             
-                            if has_attr1 and has_attr2:
-                                # This section is handled by the attribute1 loop above.
-                                # No general chart here for the top level of 2-attribute KPIs.
-                                pass 
-                            elif has_attr1:
-                                melted_df = comparison_table_df.melt(id_vars=[comparison_table_df.columns[0]], # Use the renamed attribute column
-                                                                    value_vars=[report1_col_name, report2_col_name],
-                                                                    var_name='Period', value_name='Value')
-                                fig_comp = px.bar(
-                                    melted_df, 
-                                    x=comparison_table_df.columns[0], # Use the renamed attribute column as x-axis
-                                    y='Value', 
-                                    color='Period', 
-                                    barmode='group',
-                                    title=f"Comparison for {kpi_name_selected} by {comparison_table_df.columns[0]}", # Modified title
-                                    labels={'Value': 'KPI Value', comparison_table_df.columns[0]: comparison_table_df.columns[0]}, # Modified label
-                                    color_discrete_map={report1_col_name: 'blue', report2_col_name: 'red'},
-                                    template='plotly_white'
-                                )
-                            elif has_attr2:
-                                melted_df = comparison_table_df.melt(id_vars=[comparison_table_df.columns[0]], # Use the renamed attribute column
-                                                                    value_vars=[report1_col_name, report2_col_name],
-                                                                    var_name='Period', value_name='Value')
-                                fig_comp = px.bar(
-                                    melted_df, 
-                                    x=comparison_table_df.columns[0], # Use the renamed attribute column as x-axis
-                                    y='Value', 
-                                    color='Period', 
-                                    barmode='group',
-                                    title=f"Comparison for {kpi_name_selected} by {comparison_table_df.columns[0]}", # Modified title
-                                    labels={'Value': 'KPI Value', comparison_table_df.columns[0]: comparison_table_df.columns[0]}, # Modified label
-                                    color_discrete_map={report1_col_name: 'blue', report2_col_name: 'red'},
-                                    template='plotly_white'
-                                )
-                            else: # No attributes - simple bar chart for overall KPI comparison
+                            # Format numerical columns
+                            # Note: Period labels are now dynamic, so retrieve them
+                            report1_col_name = filters_1['period_label']
+                            report2_col_name = filters_2['period_label']
+
+                            for col in [report1_col_name, report2_col_name, 'Change']:
+                                if col in comparison_table_df.columns:
+                                    comparison_table_df[col] = comparison_table_df[col].apply(lambda x: format_value(x, group_type))
+
+                            if not comparison_table_df.empty:
+                                kpi_data_displayed = True
+                                st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
+
+                                # --- Create Comparison Chart for no attributes ---
                                 melted_df = comparison_table_df.melt(id_vars=['KPI'], 
                                                                     value_vars=[report1_col_name, report2_col_name],
                                                                     var_name='Period', value_name='Value')
@@ -1248,8 +1277,6 @@ if uploaded_file:
                                     color_discrete_map={report1_col_name: 'blue', report2_col_name: 'red'},
                                     template='plotly_white'
                                 )
-
-                            if fig_comp:
                                 fig_comp.update_layout(
                                     margin=dict(l=0, r=0, t=50, b=0),
                                     height=400,

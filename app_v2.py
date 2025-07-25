@@ -225,7 +225,8 @@ def format_value(value, group_type):
     """Format values based on grouping criteria"""
     if pd.isna(value):
         return 0
-    return int(value) if group_type == 'sum' else round(float(value), 1)
+    # Use 'mean' instead of 'average' here for consistent logic with aggregation functions
+    return int(value) if group_type == 'sum' else round(float(value), 1) 
 
 def display_summary_cards_streamlit(df, filters):
     """Displays KPI summary cards in Streamlit columns."""
@@ -321,7 +322,8 @@ def create_pivot_table(kpi_df, report_type, group_type):
     has_attr1 = kpi_df['attribute 1'].notna().any() and kpi_df['attribute 1'].ne("").any()
     has_attr2 = kpi_df['attribute 2'].notna().any() and kpi_df['attribute 2'].ne("").any()
     
-    aggfunc = 'sum' if group_type == 'sum' else 'mean'
+    # Use 'mean' for aggregation if group_type is 'average' or 'mean'
+    aggfunc = 'sum' if group_type == 'sum' else 'mean' 
     
     if has_attr1 and has_attr2:
         # Two attributes case
@@ -439,7 +441,8 @@ def create_chart(kpi_df, kpi_name, group_type):
     has_attr1 = kpi_df['attribute 1'].notna().any() and kpi_df['attribute 1'].ne("").any()
     has_attr2 = kpi_df['attribute 2'].notna().any() and kpi_df['attribute 2'].ne("").any()
     
-    aggfunc = 'sum' if group_type == 'sum' else 'mean'
+    # Use 'mean' for aggregation if group_type is 'average' or 'mean'
+    aggfunc = 'sum' if group_type == 'sum' else 'mean' 
     
     fig = None 
     
@@ -683,7 +686,10 @@ if uploaded_file:
         if not validate_data(df):
             st.stop()
         
-        # Clean data
+        # Standardize 'grouping criteria' column immediately after loading
+        # Replace 'average' with 'mean' for consistent aggregation function names
+        df['grouping criteria'] = df['grouping criteria'].astype(str).str.lower().replace('average', 'mean')
+        
         df['value'] = pd.to_numeric(df['value'], errors='coerce').fillna(0)
         df = df.dropna(subset=['kpi id', 'kpi name', 'department'])
         
@@ -783,7 +789,7 @@ if uploaded_file:
                             st.markdown(f"## Selected KPI: {selected_kpi_names[0]}")
                             kpi_id_selected = report_df[report_df['kpi name'] == selected_kpi_names[0]]['kpi id'].iloc[0]
                             kpi_name_selected = selected_kpi_names[0]
-                            group_type_selected = report_df[report_df['kpi name'] == selected_kpi_names[0]]['grouping criteria'].iloc[0]
+                            group_type_selected = report_df[report_df['kpi name'] == kpi_name_selected]['grouping criteria'].iloc[0] # Use kpi_name_selected to get group_type
 
                             kpi_df_selected = report_df[report_df['kpi id'] == kpi_id_selected]
 
@@ -960,7 +966,7 @@ if uploaded_file:
                     selected_half_2 = st.selectbox("Half 2", ["H1", "H2"], key="half_2")
                 
                 filters_2 = {
-                    'report_type': report_type_2, # Corrected typo here
+                    'report_type': report_type_2, 
                     'year': selected_year_2,
                     'month': selected_month_2,
                     'quarter': selected_quarter_2,

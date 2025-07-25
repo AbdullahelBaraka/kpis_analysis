@@ -146,16 +146,16 @@ uploaded_file = st.sidebar.file_uploader(
 with st.sidebar.expander("📋 Required Excel Format", expanded=False):
     st.markdown("""
     **Required Columns:**
-    - `kpi id` - Unique KPI identifier [cite: 18]
-    - `kpi name` - KPI description [cite: 18]
-    - `attribute 1` - Primary grouping attribute [cite: 18]
-    - `attribute 2` - Secondary grouping attribute [cite: 18]
-    - `grouping criteria` - 'sum' or 'average' [cite: 18]
-    - `value` - KPI numeric value [cite: 18]
-    - `month` - Month name [cite: 18]
-    - `quarter` - Quarter (Q1, Q2, Q3, Q4) [cite: 18]
-    - `year` - Year (YYYY) [cite: 18]
-    - `department` - Department name [cite: 18]
+    - `kpi id` - Unique KPI identifier
+    - `kpi name` - KPI description
+    - `attribute 1` - Primary grouping attribute
+    - `attribute 2` - Secondary grouping attribute
+    - `grouping criteria` - 'sum' or 'average'
+    - `value` - KPI numeric value
+    - `month` - Month name
+    - `quarter` - Quarter (Q1, Q2, Q3, Q4)
+    - `year` - Year (YYYY)
+    - `department` - Department name
     """)
 
 # Constants
@@ -172,7 +172,7 @@ def validate_data(df):
     """Validate uploaded data structure"""
     required_columns = ['kpi id', 'kpi name', 'attribute 1', 'attribute 2',
                         'grouping criteria', 'value', 'month', 'quarter', 'year', 'department']
-    missing_columns = [col for col in required_columns if col not in df.columns] [cite: 20]
+    missing_columns = [col for col in required_columns if col not in df.columns]
     
     if missing_columns:
         st.error(f"Missing required columns: {', '.join(missing_columns)}")
@@ -186,7 +186,7 @@ def validate_data(df):
     return True
 
 def format_value(value, group_type):
-    """Format values based on grouping criteria""" [cite: 21]
+    """Format values based on grouping criteria"""
     if pd.isna(value):
         return 0
     return int(value) if group_type == 'sum' else round(float(value), 1)
@@ -201,7 +201,7 @@ def apply_filters(df, filters):
     
     # Report type specific filters
     if filters['report_type'] == "Monthly" and filters['month']:
-        filtered_df = filtered_df[filtered_df['month'] == filters['month']] [cite: 22]
+        filtered_df = filtered_df[filtered_df['month'] == filters['month']]
     elif filters['report_type'] == "Quarter" and filters['quarter']:
         quarter_months = QUARTER_MONTHS.get(filters['quarter'], [])
         filtered_df = filtered_df[filtered_df['month'].isin(quarter_months)]
@@ -211,7 +211,7 @@ def apply_filters(df, filters):
         else:
             filtered_df = filtered_df[filtered_df['month'].isin(MONTH_ORDER[6:])]
     
-    # Department filter [cite: 23]
+    # Department filter
     if filters.get('department') and filters['department'] != "All Departments":
         filtered_df = filtered_df[filtered_df['department'] == filters['department']]
     
@@ -219,7 +219,7 @@ def apply_filters(df, filters):
 
 # START OF UNCOMMENTED display_summary_cards_streamlit FUNCTION
 def display_summary_cards_streamlit(df, filters):
-    """Displays KPI summary cards in Streamlit columns.""" [cite: 23]
+    """Displays KPI summary cards in Streamlit columns."""
     filtered_df = apply_filters(df, filters)
     
     if filtered_df.empty:
@@ -227,7 +227,7 @@ def display_summary_cards_streamlit(df, filters):
     
     col1, col2, col3, col4 = st.columns(4)
     
-    total_kpis = filtered_df['kpi id'].nunique() [cite: 24]
+    total_kpis = filtered_df['kpi id'].nunique()
     with col1:
         st.markdown(f"""
             <div class="kpi-card">
@@ -236,7 +236,7 @@ def display_summary_cards_streamlit(df, filters):
             </div>
         """, unsafe_allow_html=True)
     
-    total_departments = filtered_df['department'].nunique() [cite: 25]
+    total_departments = filtered_df['department'].nunique()
     with col2:
         st.markdown(f"""
             <div class="kpi-card">
@@ -245,7 +245,7 @@ def display_summary_cards_streamlit(df, filters):
             </div>
         """, unsafe_allow_html=True)
     
-    avg_value = filtered_df['value'].mean() [cite: 26]
+    avg_value = filtered_df['value'].mean()
     with col3:
         st.markdown(f"""
             <div class="kpi-card">
@@ -254,7 +254,7 @@ def display_summary_cards_streamlit(df, filters):
             </div>
         """, unsafe_allow_html=True)
     
-    total_records = len(filtered_df) [cite: 27]
+    total_records = len(filtered_df)
     with col4:
         st.markdown(f"""
             <div class="kpi-card">
@@ -266,15 +266,15 @@ def display_summary_cards_streamlit(df, filters):
 
 # START OF UNCOMMENTED get_summary_cards_html_for_pdf FUNCTION
 def get_summary_cards_html_for_pdf(df, filters):
-    """Generates HTML string for KPI summary cards, suitable for PDF embedding.""" [cite: 27]
+    """Generates HTML string for KPI summary cards, suitable for PDF embedding."""
     filtered_df = apply_filters(df, filters)
     
     if filtered_df.empty:
         return ""
-  
-    summary_html = "" [cite: 28]
     
-    total_kpis = filtered_df['kpi id'].nunique() [cite: 28]
+    summary_html = ""
+    
+    total_kpis = filtered_df['kpi id'].nunique()
     summary_html += f"""
         <div class="kpi-card">
             <h4>📊 Total KPIs</h4>
@@ -282,23 +282,23 @@ def get_summary_cards_html_for_pdf(df, filters):
         </div>
     """
     
-    total_departments = filtered_df['department'].nunique() [cite: 28]
+    total_departments = filtered_df['department'].nunique()
     summary_html += f"""
         <div class="kpi-card">
-            <h4>🏢 Departments</h4> [cite: 29]
+            <h4>🏢 Departments</h4>
             <div class="kpi-value">{total_departments}</div>
         </div>
     """
     
-    avg_value = filtered_df['value'].mean() [cite: 29]
+    avg_value = filtered_df['value'].mean()
     summary_html += f"""
         <div class="kpi-card">
             <h4>📈 Avg Value</h4>
             <div class="kpi-value">{format_value(avg_value, 'average')}</div>
         </div>
     """
-    
-    total_records = len(filtered_df) [cite: 30]
+
+total_records = len(filtered_df)
     summary_html += f"""
         <div class="kpi-card">
             <h4>📋 Records</h4>
@@ -306,11 +306,11 @@ def get_summary_cards_html_for_pdf(df, filters):
         </div>
     """
     # Wrap in a flex container for PDF layout
-    return f"""<div style="display:flex; justify-content:space-around; flex-wrap:wrap; margin-bottom: 2rem;">{summary_html}</div>""" [cite: 31]
+    return f"""<div style="display:flex; justify-content:space-around; flex-wrap:wrap; margin-bottom: 2rem;">{summary_html}</div>"""
 # END OF UNCOMMENTED get_summary_cards_html_for_pdf FUNCTION
 
 def create_pivot_table(kpi_df, report_type, group_type):
-    """Create pivot table for KPI data""" [cite: 31]
+    """Create pivot table for KPI data"""
     has_attr1 = kpi_df['attribute 1'].notna().any() and kpi_df['attribute 1'].ne("").any()
     has_attr2 = kpi_df['attribute 2'].notna().any() and kpi_df['attribute 2'].ne("").any()
     
@@ -320,17 +320,17 @@ def create_pivot_table(kpi_df, report_type, group_type):
         # Two attributes case
         return create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type)
     elif has_attr1:
-        # Single attribute 1 case [cite: 32]
+        # Single attribute 1 case
         return create_single_attribute_pivot(kpi_df, 'attribute 1', report_type, aggfunc, group_type)
     elif has_attr2:
-        # Single attribute 2 case [cite: 32]
+        # Single attribute 2 case
         return create_single_attribute_pivot(kpi_df, 'attribute 2', report_type, aggfunc, group_type)
     else:
-        # No attributes case [cite: 32]
+        # No attributes case
         return create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type)
 
 def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
-    """Handle two attribute pivot tables""" [cite: 32]
+    """Handle two attribute pivot tables"""
     results = []
     
     for attr1 in sorted(kpi_df['attribute 1'].dropna().unique()):
@@ -347,7 +347,7 @@ def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
             )
             # Reorder columns by month order
             available_months = [m for m in MONTH_ORDER if m in pivot.columns]
-            pivot = pivot.reindex(columns=available_months) [cite: 35]
+            pivot = pivot.reindex(columns=available_months)
             pivot['Total'] = pivot.sum(axis=1) if group_type == 'sum' else pivot.mean(axis=1)
         else:
             pivot = pd.pivot_table(
@@ -361,11 +361,11 @@ def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
         
         pivot = pivot.reset_index()
         
-        # Format values [cite: 36]
+        # Format values
         for col in pivot.columns[1:]: 
             pivot[col] = pivot[col].apply(lambda x: format_value(x, group_type))
         
-        # Calculate attribute total [cite: 37]
+        # Calculate attribute total
         attr1_total = format_value(sub_df['value'].sum() if group_type == 'sum' else sub_df['value'].mean(), group_type)
         
         results.append((attr1, attr1_total, pivot)) 
@@ -373,7 +373,7 @@ def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
     return results
 
 def create_single_attribute_pivot(kpi_df, attribute, report_type, aggfunc, group_type):
-    """Handle single attribute pivot tables""" [cite: 38]
+    """Handle single attribute pivot tables"""
     if report_type != "Monthly":
         pivot = pd.pivot_table(
             kpi_df,
@@ -383,7 +383,7 @@ def create_single_attribute_pivot(kpi_df, attribute, report_type, aggfunc, group
             aggfunc=aggfunc,
             fill_value=0
         )
-        # Reorder columns by month order [cite: 39]
+        # Reorder columns by month order
         available_months = [m for m in MONTH_ORDER if m in pivot.columns]
         pivot = pivot.reindex(columns=available_months) 
         pivot['Total'] = pivot.sum(axis=1) if group_type == 'sum' else pivot.mean(axis=1)
@@ -399,7 +399,7 @@ def create_single_attribute_pivot(kpi_df, attribute, report_type, aggfunc, group
     
     pivot = pivot.reset_index()
     
-    # Format values [cite: 40]
+    # Format values
     for col in pivot.columns[1:]: 
         pivot[col] = pivot[col].apply(lambda x: format_value(x, group_type))
     
@@ -415,7 +415,7 @@ def create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
             aggfunc=aggfunc,
             fill_value=0
         )
-        # Reorder columns by month order [cite: 42]
+        # Reorder columns by month order
         available_months = [m for m in MONTH_ORDER if m in pivot.columns]
         pivot = pivot.reindex(columns=available_months) 
         pivot['Total'] = pivot.sum() if group_type == 'sum' else pivot.mean()
@@ -484,7 +484,7 @@ def create_chart(kpi_df, kpi_name, group_type):
                 markers=True,
                 labels={'value': 'KPI Value', 'month': 'Month'}
             )
-        # No chart if only one month and no attributes [cite: 49]
+        # No chart if only one month and no attributes
     
     if fig: 
         fig.update_layout(
@@ -516,9 +516,9 @@ def get_pdfkit_config():
         config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
         return config
     except Exception as e:
-        st.error(f"Error configuring wkhtmltopdf. Please ensure it is installed and the path is correct: {e}") [cite: 53]
-        st.info("If running locally, download wkhtmltopdf from https://wkhtmltopdf.org/downloads.html") [cite: 53]
-        st.info("If deploying on Streamlit Cloud, remember to add 'wkhtmltopdf' to packages.txt.") [cite: 54]
+        st.error(f"Error configuring wkhtmltopdf. Please ensure it is installed and the path is correct: {e}")
+        st.info("If running locally, download wkhtmltopdf from https://wkhtmltopdf.org/downloads.html")
+        st.info("If deploying on Streamlit Cloud, remember to add 'wkhtmltopdf' to packages.txt.")
         st.stop() # Removed the extra `def` here, as this was likely the source of previous syntax error
 
 def generate_dashboard_html(df, filters):
@@ -544,26 +544,26 @@ def generate_dashboard_html(df, filters):
             color: white; 
             text-align: center; 
             box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
-            display: inline-block; /* For side-by-side cards in PDF */ [cite: 59]
-            width: 22%; [cite: 60]
-            /* Adjust width for 4 cards in a row */ [cite: 60]
-            vertical-align: top; [cite: 60]
-        } [cite: 61]
-        .kpi-value { font-size: 2rem; font-weight: bold; margin: 0.5rem 0; } [cite: 62]
+            display: inline-block; /* For side-by-side cards in PDF */
+            width: 22%; 
+            /* Adjust width for 4 cards in a row */ 
+            vertical-align: top; 
+        }
+        .kpi-value { font-size: 2rem; font-weight: bold; margin: 0.5rem 0; }
         .department-section {
-            border-left: 4px solid #1f77b4; [cite: 62]
-            padding-left: 1rem; [cite: 63]
-            margin: 1rem 0; [cite: 63]
-            background-color: #f8f9fa; [cite: 63]
-            border-radius: 0 10px 10px 0; [cite: 63]
-        } [cite: 64]
-        table { width: 100%; border-collapse: collapse; margin-top: 1rem; } [cite: 65]
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; [cite: 65]
-        vertical-align: middle; } [cite: 66]
-        th { background-color: #f0f2f6; font-weight: bold; } [cite: 67]
-        .plotly-chart-img { max-width: 100%; height: auto; display: block; margin: 1rem auto; } [cite: 68] /* Style for embedded chart images */
-        hr { border: 0; [cite: 68]
-        height: 1px; background-color: #ddd; margin: 2rem 0; } [cite: 69]
+            border-left: 4px solid #1f77b4; 
+            padding-left: 1rem; 
+            margin: 1rem 0; 
+            background-color: #f8f9fa; 
+            border-radius: 0 10px 10px 0; 
+        }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center;
+        vertical-align: middle; }
+        th { background-color: #f0f2f6; font-weight: bold; }
+        .plotly-chart-img { max-width: 100%; height: auto; display: block; margin: 1rem auto; } /* Style for embedded chart images */
+        hr { border: 0;
+        height: 1px; background-color: #ddd; margin: 2rem 0; }
     </style>
     """
 
@@ -578,27 +578,25 @@ def generate_dashboard_html(df, filters):
     </head>
     <body>
         <div class="main-header">
-            <h1>🏥 Horus Hospital KPI Report</h1> [cite: 70]
-            <p>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p> [cite: 70]
-            <p>Filters: Year: {filters['year']}, Report Type: {filters['report_type']} [cite: 70]
-            {f", Month: {filters['month']}" if filters['month'] else ""} [cite: 70]
-            {f", Quarter: {filters['quarter']}" if filters['quarter'] else ""} [cite: 70]
-            {f", Half: {filters['half']}" if filters['half'] else ""} [cite: 70]
-            {f", Department: {filters['department']}" if filters['department'] != "All Departments" else ""} [cite: 71]
+            <h1>🏥 Horus Hospital KPI Report</h1>
+            <p>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p>Filters: Year: {filters['year']}, Report Type: {filters['report_type']}
+            {f", Month: {filters['month']}" if filters['month'] else ""}
+            {f", Quarter: {filters['quarter']}" if filters['quarter'] else ""}
+            {f", Half: {filters['half']}" if filters['half'] else ""}
+            {f", Department: {filters['department']}" if filters['department'] != "All Departments" else ""}
             </p>
         </div>
     """
 
-    report_df = apply_filters(df, filters) [cite: 71]
+    report_df = apply_filters(df, filters)
 
     if report_df.empty: 
         html_content += "<p>No data available for selected filters.</p>" 
         return html_content + "</body></html>" 
 
     # Add summary cards to HTML for PDF 
-    html_content += get_summary_cards_html_for_pdf(df, filters) 
-
-
+    html_content += get_summary_cards_html_for_pdf(df, filters)
     for dept in sorted(report_df['department'].dropna().unique()): 
         html_content += f"""
         <div class="department-section">
@@ -686,8 +684,8 @@ if uploaded_file:
             if report_type == "Monthly": 
                 with col3: 
                     available_months = sorted(df[df['year'] == selected_year]['month'].dropna().unique(),
-                                              key=lambda x: MONTH_ORDER.index(x) if x in MONTH_ORDER else 999) 
-                    selected_month = st.selectbox("Month", available_months) [cite: 84]
+                                             key=lambda x: MONTH_ORDER.index(x) if x in MONTH_ORDER else 999) 
+                    selected_month = st.selectbox("Month", available_months)
             elif report_type == "Quarter": 
                 with col3: 
                     available_quarters = sorted(df[df['year'] == selected_year]['quarter'].dropna().unique()) 
@@ -705,7 +703,7 @@ if uploaded_file:
                 'half': selected_half, 
                 'department': selected_department 
             }
-           # Use a session state variable to store if dashboard is generated
+            # Use a session state variable to store if dashboard is generated
             if 'dashboard_generated' not in st.session_state:
                 st.session_state.dashboard_generated = False
             

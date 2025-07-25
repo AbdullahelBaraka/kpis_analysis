@@ -1,0 +1,6 @@
+streamlit
+pandas
+plotly
+kaleido
+weasyprint
+

@@ -618,7 +618,7 @@ def generate_dashboard_html(df, filters):
 
         for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values:
             kpi_id, kpi_name, group_type = kpi_data
-            kpi_df = dept_df[dept_df['kpi id'] == kpi_id] # Fixed: Use dept_df to filter for kpi_id
+            kpi_df = dept_df[dept_df['kpi id'] == kpi_id] 
 
             if group_type == "sum":
                 total_value = format_value(kpi_df['value'].sum(), group_type)
@@ -1074,15 +1074,16 @@ if uploaded_file:
                                     if col in sub_comparison_table_df.columns:
                                         sub_comparison_table_df[col] = sub_comparison_table_df[col].apply(lambda x: format_value(x, group_type))
 
-                                # Rename the attribute column to just its label
-                                sub_comparison_table_df.rename(columns={'attribute 2': kpi_df_specific.columns[3].replace('attribute ', '')}, inplace=True) # Removed "Attribute " prefix
+                                # Get the actual attribute 2 column name to use in the title/labels
+                                attr2_col_name = kpi_df_specific.columns[3].replace('attribute ', '') # e.g., 'Specialty' or 'Location'
+                                sub_comparison_table_df.rename(columns={'attribute 2': attr2_col_name}, inplace=True)
 
 
                                 if not sub_comparison_table_df.empty:
                                     kpi_data_displayed = True # Set global flag to True if anything is displayed
                                     any_sub_attribute_data_displayed_in_this_kpi = True # Set local flag to True
                                     # MODIFIED LINE: Changed heading to use KPI name instead of 'Department' for attribute 1 section
-                                    st.markdown(f"#### {kpi_name_selected}: {attr1_val}") 
+                                    st.markdown(f"#### {kpi_name_selected} ({attr1_val})") # Removed 'by [attribute name]'
                                     st.dataframe(sub_comparison_table_df, use_container_width=True, hide_index=True)
 
                                     # Create chart for this sub-comparison
@@ -1096,8 +1097,8 @@ if uploaded_file:
                                         y='Value', 
                                         color='Period', 
                                         barmode='group',
-                                        title=f"Comparison for {kpi_name_selected} ({attr1_val}) by {sub_comparison_table_df.columns[0]}", # Modified title, removed "attribute " prefix
-                                        labels={'Value': 'KPI Value', sub_comparison_table_df.columns[0]: sub_comparison_table_df.columns[0]}, # Modified label, removed "attribute " prefix
+                                        title=f"Comparison for {kpi_name_selected} ({attr1_val})", # Modified title, removed "by X"
+                                        labels={'Value': 'KPI Value', melted_sub_df.columns[0]: attr2_col_name}, # Modified label, show correct attribute name on axis
                                         color_discrete_map={report1_col_name: 'blue', report2_col_name: 'red'},
                                         template='plotly_white'
                                     )
@@ -1105,7 +1106,8 @@ if uploaded_file:
                                         margin=dict(l=0, r=0, t=50, b=0),
                                         height=400,
                                         showlegend=True,
-                                        font=dict(size=12, color="black")
+                                        font=dict(size=12, color="black"),
+                                        xaxis_title="" # Hide x-axis title
                                     )
                                     st.plotly_chart(fig_sub_comp, use_container_width=True)
                                 
@@ -1131,7 +1133,9 @@ if uploaded_file:
                             comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
                             # Add KPI Name column for chart
                             comparison_table_df['KPI Name'] = kpi_name_selected
-                            comparison_table_df.rename(columns={'attribute 1': kpi_df_specific.columns[2].replace('attribute ', '')}, inplace=True) # Removed "Attribute " prefix
+
+                            attr1_col_name = kpi_df_specific.columns[2].replace('attribute ', '')
+                            comparison_table_df.rename(columns={'attribute 1': attr1_col_name}, inplace=True) # Removed "Attribute " prefix
 
                             if not comparison_table_df.empty:
                                 kpi_data_displayed = True # Set flag to True if anything is displayed
@@ -1147,8 +1151,8 @@ if uploaded_file:
                                     y='Value', 
                                     color='Period', 
                                     barmode='group',
-                                    title=f"Comparison for {kpi_name_selected} by {comparison_table_df.columns[0]}", # Modified title
-                                    labels={'Value': 'KPI Value', comparison_table_df.columns[0]: comparison_table_df.columns[0]}, # Modified label
+                                    title=f"Comparison for {kpi_name_selected} by {attr1_col_name}", # Modified title, removed "by X"
+                                    labels={'Value': 'KPI Value', melted_df.columns[0]: attr1_col_name}, # Modified label
                                     color_discrete_map={report1_col_name: 'blue', report2_col_name: 'red'},
                                     template='plotly_white'
                                 )
@@ -1156,7 +1160,8 @@ if uploaded_file:
                                     margin=dict(l=0, r=0, t=50, b=0),
                                     height=400,
                                     showlegend=True,
-                                    font=dict(size=12, color="black")
+                                    font=dict(size=12, color="black"),
+                                    xaxis_title="" # Hide x-axis title
                                 )
                                 st.plotly_chart(fig_comp, use_container_width=True)
 
@@ -1177,12 +1182,9 @@ if uploaded_file:
                             comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
                             # Add KPI Name column for chart
                             comparison_table_df['KPI Name'] = kpi_name_selected
-                            comparison_table_df.rename(columns={'attribute 2': kpi_df_specific.columns[3].replace('attribute ', '')}, inplace=True) # Removed "Attribute " prefix
-
-                            # Format numerical columns
-                            for col in [report1_col_name, report2_col_name, 'Change']:
-                                if col in comparison_table_df.columns:
-                                    comparison_table_df[col] = comparison_table_df[col].apply(lambda x: format_value(x, group_type))
+                            
+                            attr2_col_name = kpi_df_specific.columns[3].replace('attribute ', '')
+                            comparison_table_df.rename(columns={'attribute 2': attr2_col_name}, inplace=True) # Removed "Attribute " prefix
 
                             if not comparison_table_df.empty:
                                 kpi_data_displayed = True # Set flag to True if anything is displayed
@@ -1198,8 +1200,8 @@ if uploaded_file:
                                     y='Value', 
                                     color='Period', 
                                     barmode='group',
-                                    title=f"Comparison for {kpi_name_selected} by {comparison_table_df.columns[0]}", # Modified title
-                                    labels={'Value': 'KPI Value', comparison_table_df.columns[0]: comparison_table_df.columns[0]}, # Modified label
+                                    title=f"Comparison for {kpi_name_selected} by {attr2_col_name}", # Modified title
+                                    labels={'Value': 'KPI Value', melted_df.columns[0]: attr2_col_name}, # Modified label
                                     color_discrete_map={report1_col_name: 'blue', report2_col_name: 'red'},
                                     template='plotly_white'
                                 )
@@ -1207,7 +1209,8 @@ if uploaded_file:
                                     margin=dict(l=0, r=0, t=50, b=0),
                                     height=400,
                                     showlegend=True,
-                                    font=dict(size=12, color="black")
+                                    font=dict(size=12, color="black"),
+                                    xaxis_title="" # Hide x-axis title
                                 )
                                 st.plotly_chart(fig_comp, use_container_width=True)
 
@@ -1229,10 +1232,6 @@ if uploaded_file:
                                 '% Change': [pct_change_str]
                             })
                             
-                            # Format numerical columns
-                            # Note: Period labels are now dynamic, so retrieve them
-                            
-
                             for col in [report1_col_name, report2_col_name, 'Change']:
                                 if col in comparison_table_df.columns:
                                     comparison_table_df[col] = comparison_table_df[col].apply(lambda x: format_value(x, group_type))

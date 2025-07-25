@@ -8,10 +8,12 @@ from datetime import datetime
 
 # ---------- KPI Data Loading & Preprocessing ----------
 @st.cache_data
-def load_data():
-    df = pd.read_excel("kpi_data.xlsx")
-    df.columns = [col.strip() for col in df.columns]  # Normalize column names
-    return df
+def load_data(uploaded_file):
+    if uploaded_file is not None:
+        df = pd.read_excel(uploaded_file)
+        df.columns = [col.strip() for col in df.columns]  # Normalize column names
+        return df
+    return pd.DataFrame()
 
 def filter_data(df, filters):
     for key, value in filters.items():
@@ -91,7 +93,12 @@ def download_pdf_button(df, filters):
 st.set_page_config(page_title="KPI Dashboard", layout="wide")
 st.title("📊 KPI Dashboard")
 
-df = load_data()
+uploaded_file = st.sidebar.file_uploader("Upload KPI Excel File", type=["xlsx"])
+df = load_data(uploaded_file)
+
+if df.empty:
+    st.warning("Please upload a valid KPI Excel file.")
+    st.stop()
 
 # Validate required columns
 required_columns = ["Department", "KPI Name", "KPI Value"]

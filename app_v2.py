@@ -160,7 +160,7 @@ with st.sidebar.expander("📋 Required Excel Format", expanded=False):
 
 # Constants
 MONTH_ORDER = ["January", "February", "March", "April", "May", "June",
-               "July", "August", "September", "October", "November", "December"] [cite: 19]
+               "July", "August", "September", "October", "November", "December"] 
 QUARTER_MONTHS = {
     'Q1': ['January', 'February', 'March'],
     'Q2': ['April', 'May', 'June'],

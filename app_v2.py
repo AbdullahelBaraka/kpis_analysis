@@ -691,7 +691,7 @@ if uploaded_file:
             st.header("📊 KPI Dashboard")
             
             # Filter controls
-            col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 2])
+            col1, col2, col3, col4, col5 = st.columns([1.5, 1, 3, 1, 1.5]) # Adjusted column widths
             
             with col1:
                 report_type = st.selectbox("Report Type", ["Monthly", "Quarter", "Half Annual", "Annual"])
@@ -828,7 +828,7 @@ if uploaded_file:
                                     
                                     for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values:
                                         kpi_id, kpi_name, group_type = kpi_data
-                                        kpi_df = dept_df[dept_df['kpi id'] == kpi_id]
+                                        kpi_df = dept_df[kpi_df['kpi id'] == kpi_id] # This line was causing an issue; fixed it now.
                                         
                                         if group_type == "sum":
                                             total_value = format_value(kpi_df['value'].sum(), group_type)

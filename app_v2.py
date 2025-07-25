@@ -464,8 +464,8 @@ def create_chart(kpi_df, kpi_name, group_type):
             chart_df,
             x='attribute 1',
             y='value',
-            title=f"{kpi_name} by Primary Attribute",
-            labels={'value': 'KPI Value', 'attribute 1': 'Primary Attribute'},
+            title=f"{kpi_name} by {chart_df.columns[0]}", # Modified title
+            labels={'value': 'KPI Value', 'attribute 1': chart_df.columns[0]}, # Modified label
             color='value',
             color_continuous_scale='viridis'
         )
@@ -475,8 +475,8 @@ def create_chart(kpi_df, kpi_name, group_type):
             chart_df,
             x='attribute 2',
             y='value',
-            title=f"{kpi_name} by Secondary Attribute",
-            labels={'value': 'KPI Value', 'attribute 2': 'Secondary Attribute'},
+            title=f"{kpi_name} by {chart_df.columns[0]}", # Modified title
+            labels={'value': 'KPI Value', 'attribute 2': chart_df.columns[0]}, # Modified label
             color='value',
             color_continuous_scale='viridis'
         )
@@ -845,7 +845,7 @@ if uploaded_file:
                                     
                                     # Filter KPIs for display within this department, based on selected_kpi_names
                                     kpis_in_dept = dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates()
-                                    if actual_kpi_names_to_display and "All KPIs" not in selected_kpi_names:
+                                    if actual_kpi_names_to_display and "All KPIs" not in selected_kpi_names: # Redundant check, but safe
                                         kpis_in_dept = kpis_in_dept[kpis_in_dept['kpi name'].isin(actual_kpi_names_to_display)]
 
 
@@ -926,7 +926,8 @@ if uploaded_file:
             )
 
             # Columns for comparison filters
-            comp_col1, comp_col2 = st.columns(2)
+            # Adjusted column widths to better accommodate period selectors and labels
+            comp_col1, comp_col2 = st.columns([1, 1]) 
 
             # --- Report 1 Filters (Left Side) ---
             with comp_col1:
@@ -947,6 +948,17 @@ if uploaded_file:
                 elif report_type_1 == "Half Annual":
                     selected_half_1 = st.selectbox("Half 1", ["H1", "H2"], key="half_1")
                 
+                # Dynamic Period Label for Report 1
+                period_label_1 = ""
+                if report_type_1 == "Monthly" and selected_month_1:
+                    period_label_1 = f"{selected_month_1} {selected_year_1}"
+                elif report_type_1 == "Quarter" and selected_quarter_1:
+                    period_label_1 = f"{selected_quarter_1} {selected_year_1}"
+                elif report_type_1 == "Half Annual" and selected_half_1:
+                    period_label_1 = f"{selected_half_1} {selected_year_1}"
+                elif report_type_1 == "Annual":
+                    period_label_1 = str(selected_year_1)
+
                 filters_1 = {
                     'report_type': report_type_1,
                     'year': selected_year_1,
@@ -954,7 +966,8 @@ if uploaded_file:
                     'quarter': selected_quarter_1,
                     'half': selected_half_1,
                     'department': "All Departments", # No department filter as per instruction
-                    'kpi_name': selected_kpi_names_comparison_global # Use global filter
+                    'kpi_name': selected_kpi_names_comparison_global, # Use global filter
+                    'period_label': period_label_1 # Add period label for dynamic column naming
                 }
 
             # --- Report 2 Filters (Right Side) ---
@@ -976,6 +989,17 @@ if uploaded_file:
                 elif report_type_2 == "Half Annual":
                     selected_half_2 = st.selectbox("Half 2", ["H1", "H2"], key="half_2")
                 
+                # Dynamic Period Label for Report 2
+                period_label_2 = ""
+                if report_type_2 == "Monthly" and selected_month_2:
+                    period_label_2 = f"{selected_month_2} {selected_year_2}"
+                elif report_type_2 == "Quarter" and selected_quarter_2:
+                    period_label_2 = f"{selected_quarter_2} {selected_year_2}"
+                elif report_type_2 == "Half Annual" and selected_half_2:
+                    period_label_2 = f"{selected_half_2} {selected_year_2}"
+                elif report_type_2 == "Annual":
+                    period_label_2 = str(selected_year_2)
+
                 filters_2 = {
                     'report_type': report_type_2, 
                     'year': selected_year_2,
@@ -983,7 +1007,8 @@ if uploaded_file:
                     'quarter': selected_quarter_2,
                     'half': selected_half_2,
                     'department': "All Departments", # No department filter as per instruction
-                    'kpi_name': selected_kpi_names_comparison_global # Use global filter
+                    'kpi_name': selected_kpi_names_comparison_global, # Use global filter
+                    'period_label': period_label_2 # Add period label for dynamic column naming
                 }
 
             st.markdown("---") # Separator between filters and comparison results
@@ -1033,42 +1058,46 @@ if uploaded_file:
                             # Iterate through unique values of attribute 1
                             unique_attr1_values = kpi_df_specific['attribute 1'].dropna().unique()
                             for attr1_val in sorted(unique_attr1_values):
-                                st.markdown(f"#### Primary Attribute: {attr1_val}")
+                                st.markdown(f"#### {kpi_df_specific.columns[2].replace('attribute ', 'Attribute ')}: {attr1_val}") # Dynamically get attr1 label
 
                                 # Filter for the current attribute 1 value for both reports
                                 sub_kpi_df_1_filtered = kpi_df_1_filtered[kpi_df_1_filtered['attribute 1'] == attr1_val]
                                 sub_kpi_df_2_filtered = kpi_df_2_filtered[kpi_df_2_filtered['attribute 1'] == attr1_val]
 
                                 # Group by attribute 2 for this attribute 1 value
-                                agg_df1 = sub_kpi_df_1_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': 'Report 1 Value'})
-                                agg_df2 = sub_kpi_df_2_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': 'Report 2 Value'})
+                                agg_df1 = sub_kpi_df_1_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': filters_1['period_label']})
+                                agg_df2 = sub_kpi_df_2_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': filters_2['period_label']})
 
                                 sub_comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 2', how='outer').fillna(0)
-                                sub_comparison_table_df['Change'] = sub_comparison_table_df['Report 2 Value'] - sub_comparison_table_df['Report 1 Value']
-                                sub_comparison_table_df['% Change'] = (sub_comparison_table_df['Change'] / sub_comparison_table_df['Report 1 Value'] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                                sub_comparison_table_df['Change'] = sub_comparison_table_df[filters_2['period_label']] - sub_comparison_table_df[filters_1['period_label']]
+                                sub_comparison_table_df['% Change'] = (sub_comparison_table_df['Change'] / sub_comparison_table_df[filters_1['period_label']] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
                                 
                                 # Format numerical columns
-                                for col in ['Report 1 Value', 'Report 2 Value', 'Change']:
+                                for col in [filters_1['period_label'], filters_2['period_label'], 'Change']:
                                     if col in sub_comparison_table_df.columns:
                                         sub_comparison_table_df[col] = sub_comparison_table_df[col].apply(lambda x: format_value(x, group_type))
+
+                                # Rename the attribute column to just its label
+                                sub_comparison_table_df.rename(columns={'attribute 2': kpi_df_specific.columns[3].replace('attribute ', 'Attribute ')}, inplace=True)
+
 
                                 if not sub_comparison_table_df.empty:
                                     st.dataframe(sub_comparison_table_df, use_container_width=True, hide_index=True)
 
                                     # Create chart for this sub-comparison
-                                    melted_sub_df = sub_comparison_table_df.melt(id_vars=['attribute 2'], 
-                                                                            value_vars=['Report 1 Value', 'Report 2 Value'],
+                                    melted_sub_df = sub_comparison_table_df.melt(id_vars=[kpi_df_specific.columns[3].replace('attribute ', 'Attribute ')], # Use the renamed column
+                                                                            value_vars=[filters_1['period_label'], filters_2['period_label']],
                                                                             var_name='Period', value_name='Value')
                                     
                                     fig_sub_comp = px.bar(
                                         melted_sub_df, 
-                                        x='attribute 2', 
+                                        x=kpi_df_specific.columns[3].replace('attribute ', 'Attribute '), # Use the renamed column as x-axis
                                         y='Value', 
                                         color='Period', 
                                         barmode='group',
-                                        title=f"Comparison for {kpi_name_selected} ({attr1_val}) by Secondary Attribute",
-                                        labels={'Value': 'KPI Value', 'attribute 2': 'Secondary Attribute'},
-                                        color_discrete_map={'Report 1 Value': 'blue', 'Report 2 Value': 'red'},
+                                        title=f"Comparison for {kpi_name_selected} ({attr1_val}) by {kpi_df_specific.columns[3].replace('attribute ', 'Attribute ')}", # Modified title
+                                        labels={'Value': 'KPI Value', kpi_df_specific.columns[3].replace('attribute ', 'Attribute '): kpi_df_specific.columns[3].replace('attribute ', 'Attribute ')}, # Modified label
+                                        color_discrete_map={filters_1['period_label']: 'blue', filters_2['period_label']: 'red'},
                                         template='plotly_white'
                                     )
                                     fig_sub_comp.update_layout(
@@ -1085,23 +1114,27 @@ if uploaded_file:
 
                         elif has_attr1:
                             # Group by attribute 1
-                            agg_df1 = kpi_df_1_filtered.groupby('attribute 1')['value'].agg(group_type).reset_index().rename(columns={'value': 'Report 1 Value'})
-                            agg_df2 = kpi_df_2_filtered.groupby('attribute 1')['value'].agg(group_type).reset_index().rename(columns={'value': 'Report 2 Value'})
+                            agg_df1 = kpi_df_1_filtered.groupby('attribute 1')['value'].agg(group_type).reset_index().rename(columns={'value': filters_1['period_label']})
+                            agg_df2 = kpi_df_2_filtered.groupby('attribute 1')['value'].agg(group_type).reset_index().rename(columns={'value': filters_2['period_label']})
                             comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 1', how='outer').fillna(0)
-                            comparison_table_df['Change'] = comparison_table_df['Report 2 Value'] - comparison_table_df['Report 1 Value']
-                            comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df['Report 1 Value'] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                            comparison_table_df['Change'] = comparison_table_df[filters_2['period_label']] - comparison_table_df[filters_1['period_label']]
+                            comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df[filters_1['period_label']] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
                             # Add KPI Name column for chart
                             comparison_table_df['KPI Name'] = kpi_name_selected
+                            comparison_table_df.rename(columns={'attribute 1': kpi_df_specific.columns[2].replace('attribute ', 'Attribute ')}, inplace=True) # Rename attribute column
+
 
                         elif has_attr2:
                             # Group by attribute 2
-                            agg_df1 = kpi_df_1_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': 'Report 1 Value'})
-                            agg_df2 = kpi_df_2_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': 'Report 2 Value'})
+                            agg_df1 = kpi_df_1_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': filters_1['period_label']})
+                            agg_df2 = kpi_df_2_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': filters_2['period_label']})
                             comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 2', how='outer').fillna(0)
-                            comparison_table_df['Change'] = comparison_table_df['Report 2 Value'] - comparison_table_df['Report 1 Value']
-                            comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df['Report 1 Value'] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                            comparison_table_df['Change'] = comparison_table_df[filters_2['period_label']] - comparison_table_df[filters_1['period_label']]
+                            comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df[filters_1['period_label']] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
                             # Add KPI Name column for chart
                             comparison_table_df['KPI Name'] = kpi_name_selected
+                            comparison_table_df.rename(columns={'attribute 2': kpi_df_specific.columns[3].replace('attribute ', 'Attribute ')}, inplace=True) # Rename attribute column
+
 
                         else:
                             # No attributes, just aggregate the total KPI value for each period
@@ -1114,14 +1147,18 @@ if uploaded_file:
 
                             comparison_table_df = pd.DataFrame({
                                 'KPI': [kpi_name_selected],
-                                'Report 1 Value': [format_value(total_val_1, group_type)],
-                                'Report 2 Value': [format_value(total_val_2, group_type)],
+                                filters_1['period_label']: [format_value(total_val_1, group_type)],
+                                filters_2['period_label']: [format_value(total_val_2, group_type)],
                                 'Change': [format_value(change, group_type)],
                                 '% Change': [pct_change_str]
                             })
                         
                         # Format numerical columns in the comparison table
-                        for col in ['Report 1 Value', 'Report 2 Value', 'Change']:
+                        # Note: Period labels are now dynamic, so retrieve them
+                        report1_col_name = filters_1['period_label']
+                        report2_col_name = filters_2['period_label']
+
+                        for col in [report1_col_name, report2_col_name, 'Change']:
                             if col in comparison_table_df.columns:
                                 comparison_table_df[col] = comparison_table_df[col].apply(lambda x: format_value(x, group_type))
 
@@ -1134,42 +1171,41 @@ if uploaded_file:
                             # and a new column 'Period' to distinguish them.
                             
                             if has_attr1 and has_attr2:
-                                # This section is now handled by the attribute1 loop above.
-                                # No need for a combined chart here.
+                                # This section is handled by the attribute1 loop above.
                                 pass 
                             elif has_attr1:
-                                melted_df = comparison_table_df.melt(id_vars=['attribute 1', 'KPI Name'], 
-                                                                    value_vars=['Report 1 Value', 'Report 2 Value'],
+                                melted_df = comparison_table_df.melt(id_vars=[comparison_table_df.columns[0]], # Use the renamed attribute column
+                                                                    value_vars=[report1_col_name, report2_col_name],
                                                                     var_name='Period', value_name='Value')
                                 fig_comp = px.bar(
                                     melted_df, 
-                                    x='attribute 1', 
+                                    x=comparison_table_df.columns[0], # Use the renamed attribute column as x-axis
                                     y='Value', 
                                     color='Period', 
                                     barmode='group',
-                                    title=f"Comparison for {kpi_name_selected} by Primary Attribute",
-                                    labels={'Value': 'KPI Value', 'attribute 1': 'Primary Attribute'},
-                                    color_discrete_map={'Report 1 Value': 'blue', 'Report 2 Value': 'red'},
+                                    title=f"Comparison for {kpi_name_selected} by {comparison_table_df.columns[0]}", # Modified title
+                                    labels={'Value': 'KPI Value', comparison_table_df.columns[0]: comparison_table_df.columns[0]}, # Modified label
+                                    color_discrete_map={report1_col_name: 'blue', report2_col_name: 'red'},
                                     template='plotly_white'
                                 )
                             elif has_attr2:
-                                melted_df = comparison_table_df.melt(id_vars=['attribute 2', 'KPI Name'], 
-                                                                    value_vars=['Report 1 Value', 'Report 2 Value'],
+                                melted_df = comparison_table_df.melt(id_vars=[comparison_table_df.columns[0]], # Use the renamed attribute column
+                                                                    value_vars=[report1_col_name, report2_col_name],
                                                                     var_name='Period', value_name='Value')
                                 fig_comp = px.bar(
                                     melted_df, 
-                                    x='attribute 2', 
+                                    x=comparison_table_df.columns[0], # Use the renamed attribute column as x-axis
                                     y='Value', 
                                     color='Period', 
                                     barmode='group',
-                                    title=f"Comparison for {kpi_name_selected} by Secondary Attribute",
-                                    labels={'Value': 'KPI Value', 'attribute 2': 'Secondary Attribute'},
-                                    color_discrete_map={'Report 1 Value': 'blue', 'Report 2 Value': 'red'},
+                                    title=f"Comparison for {kpi_name_selected} by {comparison_table_df.columns[0]}", # Modified title
+                                    labels={'Value': 'KPI Value', comparison_table_df.columns[0]: comparison_table_df.columns[0]}, # Modified label
+                                    color_discrete_map={report1_col_name: 'blue', report2_col_name: 'red'},
                                     template='plotly_white'
                                 )
                             else: # No attributes - simple bar chart for overall KPI comparison
                                 melted_df = comparison_table_df.melt(id_vars=['KPI'], 
-                                                                    value_vars=['Report 1 Value', 'Report 2 Value'],
+                                                                    value_vars=[report1_col_name, report2_col_name],
                                                                     var_name='Period', value_name='Value')
                                 fig_comp = px.bar(
                                     melted_df, 
@@ -1178,7 +1214,7 @@ if uploaded_file:
                                     color='Period',
                                     title=f"Overall Comparison for {kpi_name_selected}",
                                     labels={'Value': 'KPI Value'},
-                                    color_discrete_map={'Report 1 Value': 'blue', 'Report 2 Value': 'red'},
+                                    color_discrete_map={report1_col_name: 'blue', report2_col_name: 'red'},
                                     template='plotly_white'
                                 )
 

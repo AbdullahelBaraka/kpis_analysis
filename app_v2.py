@@ -1030,8 +1030,8 @@ if uploaded_file:
                             continue
 
                         # Add a flag to track if any KPI data was displayed for this department to avoid generic "No data" message
-                        dept_has_displayed_data = False 
-
+                        # local_kpi_data_displayed_in_section moved inside each 'if' block where data is actually displayed
+                        
                         for kpi_data_comp in kpis_in_this_dept:
                             kpi_id_selected = kpi_data_comp[0]
                             kpi_name_selected = kpi_data_comp[1]
@@ -1059,8 +1059,8 @@ if uploaded_file:
                             has_attr1 = kpi_df_specific_dept['attribute 1'].notna().any() and kpi_df_specific_dept['attribute 1'].ne("").any()
                             has_attr2 = kpi_df_specific_dept['attribute 2'].notna().any() and kpi_df_specific_dept['attribute 2'].ne("").any()
 
-                            # Flag to check if any data was displayed for this specific KPI (or its sub-attributes)
-                            local_kpi_data_displayed_in_section = False
+                            # Initialize flag for the current KPI's data display
+                            kpi_data_displayed = False
 
                             if has_attr1 and has_attr2:
                                 # Iterate through unique values of attribute 1
@@ -1069,8 +1069,8 @@ if uploaded_file:
                                 for attr1_val in sorted(unique_attr1_values):
                                     # Filter for the current attribute 1 value for both reports
                                     sub_kpi_df_1_filtered = kpi_df_1_filtered[kpi_df_1_filtered['attribute 1'] == attr1_val]
-                                    sub_kpi_df_2_filtered = sub_kpi_df_2_filtered[sub_kpi_df_2_filtered['attribute 1'] == attr1_val] # Fixed: Filter `sub_kpi_df_2_filtered`
-
+                                    sub_kpi_df_2_filtered = kpi_df_2_filtered[kpi_df_2_filtered['attribute 1'] == attr1_val] # Corrected this line
+                                    
                                     # Group by attribute 2 for this attribute 1 value
                                     agg_df1 = sub_kpi_df_1_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': report1_col_name})
                                     agg_df2 = sub_kpi_df_2_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': report2_col_name})
@@ -1132,7 +1132,7 @@ if uploaded_file:
 
 
                                     if not sub_comparison_table_df.empty:
-                                        local_kpi_data_displayed_in_section = True 
+                                        kpi_data_displayed = True 
                                         st.markdown(f"#### {kpi_name_selected} ({attr1_val})") # Use KPI name and attr1 value
                                         st.dataframe(sub_comparison_table_df, use_container_width=True, hide_index=True)
 
@@ -1163,10 +1163,6 @@ if uploaded_file:
                                     
                                     st.markdown("-----") # Sub-separator for clarity
                                 
-                                if not local_kpi_data_displayed_in_section: 
-                                    st.info(f"No detailed attribute data found for '{kpi_name_selected}' (grouped by {kpi_df_specific_dept.columns[2].replace('attribute ', '')} and {kpi_df_specific_dept.columns[3].replace('attribute ', '')}) in either selected period for {dept_comp} Department.")
-
-
                             elif has_attr1:
                                 # Group by attribute 1
                                 agg_df1 = kpi_df_1_filtered.groupby('attribute 1')['value'].agg(group_type).reset_index().rename(columns={'value': report1_col_name})
@@ -1224,7 +1220,7 @@ if uploaded_file:
 
 
                                 if not comparison_table_df.empty:
-                                    local_kpi_data_displayed_in_section = True
+                                    kpi_data_displayed = True
                                     st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
 
                                     # --- Create Comparison Chart for has_attr1 ---
@@ -1309,7 +1305,7 @@ if uploaded_file:
 
 
                                 if not comparison_table_df.empty:
-                                    local_kpi_data_displayed_in_section = True
+                                    kpi_data_displayed = True
                                     st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
 
                                     # --- Create Comparison Chart for has_attr2 ---
@@ -1370,7 +1366,7 @@ if uploaded_file:
                                 comparison_table_df = pd.concat([comparison_table_df, pd.DataFrame([total_row_data])], ignore_index=True)
 
                                 if not comparison_table_df.empty:
-                                    local_kpi_data_displayed_in_section = True
+                                    kpi_data_displayed = True
                                     st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
 
                                     # --- Create Comparison Chart for no attributes ---
@@ -1395,7 +1391,7 @@ if uploaded_file:
                                     )
                                     st.plotly_chart(fig_comp, use_container_width=True)
                             
-                            if not local_kpi_data_displayed_in_section: # If no data was displayed for this specific KPI
+                            if not kpi_data_displayed: # If no data was displayed for this specific KPI
                                 st.info(f"No comparison data could be generated for '{kpi_name_selected}' in {dept_comp} Department given the chosen periods. Please check your filters and data.")
                         
                         st.markdown("---") # Separator between KPI comparisons

@@ -216,12 +216,12 @@ def apply_filters(df, filters):
         filtered_df = filtered_df[filtered_df['department'] == filters['department']]
 
     # KPI Name filter
-    # Check if 'kpi_name' is in filters and it's not the default "All KPIs" or None/empty
-    if filters.get('kpi_name') and isinstance(filters['kpi_name'], list) and "All KPIs" not in filters['kpi_name'] and filters['kpi_name']:
-        filtered_df = filtered_df[filtered_df['kpi name'].isin(filters['kpi_name'])]
-    elif filters.get('kpi_name') and not isinstance(filters['kpi_name'], list) and filters['kpi_name'] is not None:
-         # Handle case where kpi_name is a single string (e.g. from default or initial selection)
-         filtered_df = filtered_df[filtered_df['kpi name'] == filters['kpi_name']]
+    # Corrected logic: If "All KPIs" is selected, don't filter by kpi_name at all
+    if filters.get('kpi_name') and "All KPIs" not in filters['kpi_name']:
+        if isinstance(filters['kpi_name'], list) and filters['kpi_name']: # Ensure it's a non-empty list if not All KPIs
+            filtered_df = filtered_df[filtered_df['kpi name'].isin(filters['kpi_name'])]
+        elif not isinstance(filters['kpi_name'], list) and filters['kpi_name'] is not None: # Case for single KPI string
+            filtered_df = filtered_df[filtered_df['kpi name'] == filters['kpi_name']]
 
 
     return filtered_df
@@ -982,12 +982,12 @@ if uploaded_file:
                         st.markdown(f"### Comparison for: {kpi_name_selected}")
 
                         # Filter data for the specific KPI for both reports
-                        kpi_df_1 = df[df['kpi name'] == kpi_name_selected]
-                        kpi_df_2 = df[df['kpi name'] == kpi_name_selected]
+                        kpi_df_original = df[df['kpi name'] == kpi_name_selected] # Start with original data for the KPI
 
                         # Apply filters for report 1 and report 2 to these KPI-specific dataframes
-                        kpi_df_1_filtered = apply_filters(kpi_df_1, filters_1)
-                        kpi_df_2_filtered = apply_filters(kpi_df_2, filters_2)
+                        kpi_df_1_filtered = apply_filters(kpi_df_original, filters_1)
+                        kpi_df_2_filtered = apply_filters(kpi_df_original, filters_2)
+
 
                         if kpi_df_1_filtered.empty and kpi_df_2_filtered.empty:
                             st.info(f"No data for '{kpi_name_selected}' in either selected period.")
@@ -1004,8 +1004,8 @@ if uploaded_file:
                         # --- Build Comparison Table Data ---
                         comparison_table_df = pd.DataFrame()
 
-                        has_attr1 = kpi_df_1_filtered['attribute 1'].notna().any() or kpi_df_2_filtered['attribute 1'].notna().any()
-                        has_attr2 = kpi_df_1_filtered['attribute 2'].notna().any() or kpi_df_2_filtered['attribute 2'].notna().any()
+                        has_attr1 = kpi_df_original['attribute 1'].notna().any() and kpi_df_original['attribute 1'].ne("").any()
+                        has_attr2 = kpi_df_original['attribute 2'].notna().any() and kpi_df_original['attribute 2'].ne("").any()
 
                         if has_attr1 and has_attr2:
                             # Group by both attributes
@@ -1061,7 +1061,6 @@ if uploaded_file:
 
 
                         if not comparison_table_df.empty:
-                            st.markdown(f"**KPI: {kpi_name_selected}**")
                             st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
 
                             # --- Create Comparison Chart ---

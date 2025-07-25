@@ -204,11 +204,25 @@ def apply_filters(df, filters):
     return filtered_df
 
 def format_value(value, group_type):
-    """Format values based on grouping criteria"""
+    """
+    Format values based on grouping criteria.
+    Robustly handles non-numeric values like 'Total' or 'N/A'.
+    """
+    if isinstance(value, str):
+        try:
+            float(value) # Try converting to float to see if it's a numeric string
+        except ValueError:
+            return value # Return as is if it's a non-numeric string (e.g., 'Total', 'N/A')
+    
     if pd.isna(value):
         return 0
-    # Use 'mean' instead of 'average' here for consistent logic with aggregation functions
-    return int(value) if group_type == 'sum' else round(float(value), 1) 
+    
+    try:
+        float_value = float(value)
+        return int(float_value) if group_type == 'sum' else round(float_value, 1)
+    except ValueError:
+        # Fallback in case something unexpected slips through, should ideally not be hit with the prior check
+        return value 
 
 def display_summary_cards_streamlit(df, filters):
     """Displays KPI summary cards in Streamlit columns."""
@@ -431,12 +445,8 @@ def create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
         pivot_total_value = pivot.sum().sum() if group_type == 'sum' else pivot.mean().mean() # Total of all months
         
         # Create a single row DataFrame for the total
-        total_row = pd.DataFrame({
-            'KPI Data': ['Total'],
-            **{col: format_value(pivot[col].sum() if group_type == 'sum' else pivot[col].mean(), group_type) for col in pivot.columns},
-            'Overall Total': format_value(pivot_total_value, group_type) # Add an overall total column
-        })
-
+        # This section was simplified as the existing logic handles the 'Total' row creation correctly
+        # for this specific case.
         pivot.loc['Total'] = pivot.apply(lambda x: x.sum() if group_type == 'sum' else x.mean())
         pivot = pivot.reset_index().rename(columns={'index': 'KPI Data'})
         pivot['Overall Total'] = pivot.iloc[:, 1:].apply(lambda x: x.sum() if group_type == 'sum' else x.mean(), axis=1) # Calculate overall total for each row
@@ -695,7 +705,7 @@ def generate_dashboard_html(df, filters):
             # Wrap each KPI section (heading, table, chart) in a div with page-break-inside: avoid
             html_content += f"""
             <div class="kpi-section-for-pdf">
-                <h3>� {kpi_name} (Total: {total_value})</h3>
+                <h3>📊 {kpi_name} (Total: {total_value})</h3>
             """
 
             # Create pivot table
@@ -1161,7 +1171,8 @@ if uploaded_file:
                                     st.dataframe(sub_comparison_table_df, use_container_width=True, hide_index=True)
 
                                     # Create chart for this sub-comparison - Filter out 'Total' row
-                                    melted_sub_df = sub_comparison_table_df[sub_comparison_table_df[attr2_col_name] != 'Total'].melt(
+                                    chart_data_for_plotly = sub_comparison_table_df[sub_comparison_table_df[attr2_col_name] != 'Total'].copy()
+                                    melted_sub_df = chart_data_for_plotly.melt(
                                                                             id_vars=[attr2_col_name], # Use the renamed column
                                                                             value_vars=[report1_col_name, report2_col_name],
                                                                             var_name='Period', value_name='Value')
@@ -1226,7 +1237,8 @@ if uploaded_file:
                                 st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
 
                                 # --- Create Comparison Chart for has_attr1 - Filter out 'Total' row ---
-                                melted_df = comparison_table_df[comparison_table_df[attr1_col_name] != 'Total'].melt(
+                                chart_data_for_plotly = comparison_table_df[comparison_table_df[attr1_col_name] != 'Total'].copy()
+                                melted_df = chart_data_for_plotly.melt(
                                                                     id_vars=[attr1_col_name], # Use the renamed attribute column
                                                                     value_vars=[report1_col_name, report2_col_name],
                                                                     var_name='Period', value_name='Value')
@@ -1286,7 +1298,8 @@ if uploaded_file:
                                 st.dataframe(comparison_table_df, use_container_width=True, hide_index=True)
 
                                 # --- Create Comparison Chart for has_attr2 - Filter out 'Total' row ---
-                                melted_df = comparison_table_df[comparison_table_df[attr2_col_name] != 'Total'].melt(
+                                chart_data_for_plotly = comparison_table_df[comparison_table_df[attr2_col_name] != 'Total'].copy()
+                                melted_df = chart_data_for_plotly.melt(
                                                                     id_vars=[attr2_col_name], # Use the renamed attribute column
                                                                     value_vars=[report1_col_name, report2_col_name],
                                                                     var_name='Period', value_name='Value')
@@ -1344,7 +1357,8 @@ if uploaded_file:
 
                                 # --- Create Comparison Chart for no attributes - Filter out 'Total' KPI row if it exists ---
                                 # This ensures that if the 'KPI' column somehow gets a 'Total' value, it's excluded.
-                                melted_df = comparison_table_df[comparison_table_df['KPI'] != 'Total'].melt(
+                                chart_data_for_plotly = comparison_table_df[comparison_table_df['KPI'] != 'Total'].copy()
+                                melted_df = chart_data_for_plotly.melt(
                                                                     id_vars=['KPI'], 
                                                                     value_vars=[report1_col_name, report2_col_name],
                                                                     var_name='Period', value_name='Value')

@@ -606,7 +606,7 @@ def generate_dashboard_html(df, filters):
             <h2>🏢 {dept} Department</h2>
         </div>
         """
-        dept_df = report_df[report_df['department'] == dept]
+        dept_df = report_df[dept_df['department'] == dept]
 
         for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values:
             kpi_id, kpi_name, group_type = kpi_data
@@ -724,7 +724,7 @@ if uploaded_file:
                     else:
                         st.success(f"📈 Dashboard generated with {len(report_df)} records")
                         
-                        # Display summary cards in Streamlit - COMMENTED OUT THIS CALL TO REMOVE FROM UI
+                        # Display summary cards in Streamlit - THIS CALL IS REMOVED
                         # display_summary_cards_streamlit(df, filters) 
                         
                         # Department overview
@@ -736,7 +736,7 @@ if uploaded_file:
                                     </div>
                                 """, unsafe_allow_html=True)
                                 
-                                dept_df = report_df[report_df['department'] == dept]
+                                dept_df = report_df[dept_df['department'] == dept]
                                 
                                 # Show KPIs for this department
                                 for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values:

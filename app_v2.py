@@ -160,7 +160,7 @@ with st.sidebar.expander("📋 Required Excel Format", expanded=False):
 
 # Constants
 MONTH_ORDER = ["January", "February", "March", "April", "May", "June",
-               "July", "August", "September", "October", "November", "December"] 
+               "July", "August", "September", "October", "November", "December"]
 QUARTER_MONTHS = {
     'Q1': ['January', 'February', 'March'],
     'Q2': ['April', 'May', 'June'],
@@ -217,97 +217,94 @@ def apply_filters(df, filters):
     
     return filtered_df
 
-# START OF UNCOMMENTED display_summary_cards_streamlit FUNCTION
-def display_summary_cards_streamlit(df, filters):
-    """Displays KPI summary cards in Streamlit columns."""
-    filtered_df = apply_filters(df, filters)
+##def display_summary_cards_streamlit(df, filters):
+  ##  """Displays KPI summary cards in Streamlit columns."""
+   ## filtered_df = apply_filters(df, filters)
     
-    if filtered_df.empty:
-        return # Nothing to display
+    ##if filtered_df.empty:
+      ##  return # Nothing to display
     
-    col1, col2, col3, col4 = st.columns(4)
+   ## col1, col2, col3, col4 = st.columns(4)
     
-    total_kpis = filtered_df['kpi id'].nunique()
-    with col1:
-        st.markdown(f"""
-            <div class="kpi-card">
-                <h4>📊 Total KPIs</h4>
-                <div class="kpi-value">{total_kpis}</div>
-            </div>
-        """, unsafe_allow_html=True)
+    ##total_kpis = filtered_df['kpi id'].nunique()
+    ##with col1:
+      ##  st.markdown(f"""
+        ##    <div class="kpi-card">
+          ##      <h4>📊 Total KPIs</h4>
+            ##    <div class="kpi-value">{total_kpis}</div>
+            ##</div>
+        ##""", unsafe_allow_html=True)
     
-    total_departments = filtered_df['department'].nunique()
-    with col2:
-        st.markdown(f"""
-            <div class="kpi-card">
-                <h4>🏢 Departments</h4>
-                <div class="kpi-value">{total_departments}</div>
-            </div>
-        """, unsafe_allow_html=True)
+ ##   total_departments = filtered_df['department'].nunique()
+ ##   with col2:
+   ##     st.markdown(f"""
+     ##       <div class="kpi-card">
+       ##         <h4>🏢 Departments</h4>
+         ##       <div class="kpi-value">{total_departments}</div>
+           ## </div>
+       ## """, unsafe_allow_html=True)
     
-    avg_value = filtered_df['value'].mean()
-    with col3:
-        st.markdown(f"""
-            <div class="kpi-card">
-                <h4>📈 Avg Value</h4>
-                <div class="kpi-value">{format_value(avg_value, 'average')}</div>
-            </div>
-        """, unsafe_allow_html=True)
+   ## avg_value = filtered_df['value'].mean()
+   ## with col3:
+     ##   st.markdown(f"""
+       ##     <div class="kpi-card">
+         ##       <h4>📈 Avg Value</h4>
+           ##     <div class="kpi-value">{format_value(avg_value, 'average')}</div>
+           ## </div>
+      ##  """, unsafe_allow_html=True)
     
-    total_records = len(filtered_df)
-    with col4:
-        st.markdown(f"""
-            <div class="kpi-card">
-                <h4>📋 Records</h4>
-                <div class="kpi-value">{total_records}</div>
-            </div>
-        """, unsafe_allow_html=True)
-# END OF UNCOMMENTED display_summary_cards_streamlit FUNCTION
+   ## total_records = len(filtered_df)
+   ## with col4:
+     ##   st.markdown(f"""
+       ##     <div class="kpi-card">
+         ##       <h4>📋 Records</h4>
+           ##     <div class="kpi-value">{total_records}</div>
+           ## </div>
+       ## """, unsafe_allow_html=True)""
 
-# START OF UNCOMMENTED get_summary_cards_html_for_pdf FUNCTION
-def get_summary_cards_html_for_pdf(df, filters):
-    """Generates HTML string for KPI summary cards, suitable for PDF embedding."""
-    filtered_df = apply_filters(df, filters)
+##def get_summary_cards_html_for_pdf(df, filters):
+  ##  """Generates HTML string for KPI summary cards, suitable for PDF embedding."""
+    ##filtered_df = apply_filters(df, filters)
     
-    if filtered_df.empty:
-        return ""
+   ## if filtered_df.empty:
+     ##   return ""
     
-    summary_html = ""
+   ## summary_html = ""
     
-    total_kpis = filtered_df['kpi id'].nunique()
-    summary_html += f"""
-        <div class="kpi-card">
-            <h4>📊 Total KPIs</h4>
-            <div class="kpi-value">{total_kpis}</div>
-        </div>
-    """
+   ## total_kpis = filtered_df['kpi id'].nunique()
+   ## summary_html += f"""
+     ##   <div class="kpi-card">
+       ##     <h4>📊 Total KPIs</h4>
+         ##   <div class="kpi-value">{total_kpis}</div>
+       ## </div>
+   ## """
     
-    total_departments = filtered_df['department'].nunique()
-    summary_html += f"""
-        <div class="kpi-card">
-            <h4>🏢 Departments</h4>
-            <div class="kpi-value">{total_departments}</div>
-        </div>
-    """
+   ## total_departments = filtered_df['department'].nunique()
+   ## summary_html += f"""
+     ##   <div class="kpi-card">
+       ##     <h4>🏢 Departments</h4>
+         ##   <div class="kpi-value">{total_departments}</div>
+       ## </div>
+   ## """
     
-    avg_value = filtered_df['value'].mean()
-    summary_html += f"""
-        <div class="kpi-card">
-            <h4>📈 Avg Value</h4>
-            <div class="kpi-value">{format_value(avg_value, 'average')}</div>
-        </div>
-    """
+   ## avg_value = filtered_df['value'].mean()
+   ## summary_html += f"""
+     ##   <div class="kpi-card">
+       ##     <h4>📈 Avg Value</h4>
+         ##   <div class="kpi-value">{format_value(avg_value, 'average')}</div>
+       ## </div>
+   ## """
+    
+   ## total_records = len(filtered_df)
+   ## summary_html += f"""
+     ##   <div class="kpi-card">
+       ##     <h4>📋 Records</h4>
+         ##   <div class="kpi-value">{total_records}</div>
+       ## </div>
+   ## """
+   ## # Wrap in a flex container for PDF layout
+   ## return f"""<div style="display:flex; justify-content:space-around; flex-wrap:wrap; margin-bottom: 2rem;">{summary_html}</div>"""
 
-total_records = len(filtered_df)
-    summary_html += f"""
-        <div class="kpi-card">
-            <h4>📋 Records</h4>
-            <div class="kpi-value">{total_records}</div>
-        </div>
-    """
-    # Wrap in a flex container for PDF layout
-    return f"""<div style="display:flex; justify-content:space-around; flex-wrap:wrap; margin-bottom: 2rem;">{summary_html}</div>"""
-# END OF UNCOMMENTED get_summary_cards_html_for_pdf FUNCTION
 
 def create_pivot_table(kpi_df, report_type, group_type):
     """Create pivot table for KPI data"""
@@ -353,7 +350,7 @@ def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
             pivot = pd.pivot_table(
                 sub_df,
                 index='attribute 2',
-                values='value', 
+                values='value',
                 aggfunc=aggfunc,
                 fill_value=0
             )
@@ -362,13 +359,13 @@ def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
         pivot = pivot.reset_index()
         
         # Format values
-        for col in pivot.columns[1:]: 
+        for col in pivot.columns[1:]:
             pivot[col] = pivot[col].apply(lambda x: format_value(x, group_type))
         
         # Calculate attribute total
         attr1_total = format_value(sub_df['value'].sum() if group_type == 'sum' else sub_df['value'].mean(), group_type)
         
-        results.append((attr1, attr1_total, pivot)) 
+        results.append((attr1, attr1_total, pivot))
     
     return results
 
@@ -385,13 +382,13 @@ def create_single_attribute_pivot(kpi_df, attribute, report_type, aggfunc, group
         )
         # Reorder columns by month order
         available_months = [m for m in MONTH_ORDER if m in pivot.columns]
-        pivot = pivot.reindex(columns=available_months) 
+        pivot = pivot.reindex(columns=available_months)
         pivot['Total'] = pivot.sum(axis=1) if group_type == 'sum' else pivot.mean(axis=1)
     else:
         pivot = pd.pivot_table(
             kpi_df,
             index=attribute,
-            values='value', 
+            values='value',
             aggfunc=aggfunc,
             fill_value=0
         )
@@ -400,13 +397,13 @@ def create_single_attribute_pivot(kpi_df, attribute, report_type, aggfunc, group
     pivot = pivot.reset_index()
     
     # Format values
-    for col in pivot.columns[1:]: 
+    for col in pivot.columns[1:]:
         pivot[col] = pivot[col].apply(lambda x: format_value(x, group_type))
     
     return pivot
 
 def create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
-    """Handle no attribute pivot tables""" 
+    """Handle no attribute pivot tables"""
     if report_type != "Monthly":
         pivot = pd.pivot_table(
             kpi_df,
@@ -417,18 +414,18 @@ def create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
         )
         # Reorder columns by month order
         available_months = [m for m in MONTH_ORDER if m in pivot.columns]
-        pivot = pivot.reindex(columns=available_months) 
+        pivot = pivot.reindex(columns=available_months)
         pivot['Total'] = pivot.sum() if group_type == 'sum' else pivot.mean()
         pivot = pd.DataFrame([pivot])
     else:
         total_value = kpi_df['value'].sum() if group_type == 'sum' else kpi_df['value'].mean()
         pivot = pd.DataFrame({'Total': [format_value(total_value, group_type)]})
     
-    return pivot 
+    return pivot
 
 
 def create_chart(kpi_df, kpi_name, group_type):
-    """Create appropriate chart for KPI data and return Plotly figure object.""" 
+    """Create appropriate chart for KPI data and return Plotly figure object."""
     has_attr1 = kpi_df['attribute 1'].notna().any() and kpi_df['attribute 1'].ne("").any()
     has_attr2 = kpi_df['attribute 2'].notna().any() and kpi_df['attribute 2'].ne("").any()
     
@@ -439,14 +436,14 @@ def create_chart(kpi_df, kpi_name, group_type):
     if has_attr1 and has_attr2:
         chart_df = kpi_df.groupby(['attribute 1', 'attribute 2'])['value'].agg(aggfunc).reset_index()
         fig = px.bar(
-            chart_df, 
+            chart_df,
             x='attribute 1',
             y='value',
             color='attribute 2',
             barmode='group',
             title=f"{kpi_name} by Attributes",
             labels={'value': 'KPI Value', 'attribute 1': 'Primary Attribute', 'attribute 2': 'Secondary Attribute'}
-        ) 
+        )
     elif has_attr1:
         chart_df = kpi_df.groupby('attribute 1')['value'].agg(aggfunc).reset_index()
         fig = px.bar(
@@ -454,7 +451,7 @@ def create_chart(kpi_df, kpi_name, group_type):
             x='attribute 1',
             y='value',
             title=f"{kpi_name} by Primary Attribute",
-            labels={'value': 'KPI Value', 'attribute 1': 'Primary Attribute'}, 
+            labels={'value': 'KPI Value', 'attribute 1': 'Primary Attribute'},
             color='value',
             color_continuous_scale='viridis'
         )
@@ -464,7 +461,7 @@ def create_chart(kpi_df, kpi_name, group_type):
             chart_df,
             x='attribute 2',
             y='value',
-            title=f"{kpi_name} by Secondary Attribute", 
+            title=f"{kpi_name} by Secondary Attribute",
             labels={'value': 'KPI Value', 'attribute 2': 'Secondary Attribute'},
             color='value',
             color_continuous_scale='viridis'
@@ -472,21 +469,21 @@ def create_chart(kpi_df, kpi_name, group_type):
     else:
         # Create time series chart
         if len(kpi_df['month'].unique()) > 1:
-            monthly_data = kpi_df.groupby('month')['value'].agg(aggfunc).reset_index() 
+            monthly_data = kpi_df.groupby('month')['value'].agg(aggfunc).reset_index()
             monthly_data['month_num'] = monthly_data['month'].map({month: i for i, month in enumerate(MONTH_ORDER, 1)})
             monthly_data = monthly_data.sort_values('month_num')
             
             fig = px.line(
                 monthly_data,
                 x='month',
-                y='value', 
+                y='value',
                 title=f"{kpi_name} Trend",
                 markers=True,
                 labels={'value': 'KPI Value', 'month': 'Month'}
             )
         # No chart if only one month and no attributes
     
-    if fig: 
+    if fig:
         fig.update_layout(
             margin=dict(l=0, r=0, t=50, b=0),
             height=400,
@@ -499,17 +496,17 @@ def create_chart(kpi_df, kpi_name, group_type):
 
 @st.cache_resource # Cache the wkhtmltopdf configuration to avoid re-initializing
 def get_pdfkit_config():
-    """Configures pdfkit to find wkhtmltopdf executable.""" 
-    # IMPORTANT: Adjust this path based on your deployment environment! 
-    # For Windows local development: 
+    """Configures pdfkit to find wkhtmltopdf executable."""
+    # IMPORTANT: Adjust this path based on your deployment environment!
+    # For Windows local development:
     path_wkhtmltopdf = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe'
     
-    # For Linux deployments (e.g., Streamlit Cloud, Heroku) after installing wkhtmltopdf via apt or packages.txt 
-    if os.name == 'posix': # Check if running on Linux/macOS 
-        # On Streamlit Cloud (Debian/Ubuntu), it's typically /usr/bin/wkhtmltopdf 
+    # For Linux deployments (e.g., Streamlit Cloud, Heroku) after installing wkhtmltopdf via apt or packages.txt
+    if os.name == 'posix': # Check if running on Linux/macOS
+        # On Streamlit Cloud (Debian/Ubuntu), it's typically /usr/bin/wkhtmltopdf
         path_wkhtmltopdf = '/usr/bin/wkhtmltopdf' 
-        # Sometimes '/usr/local/bin/wkhtmltopdf' might be used for manual installs, but apt puts it in /usr/bin 
-        # Or if it's in the system's PATH, you might be able to use an empty string: 
+        # Sometimes '/usr/local/bin/wkhtmltopdf' might be used for manual installs, but apt puts it in /usr/bin
+        # Or if it's in the system's PATH, you might be able to use an empty string:
         # path_wkhtmltopdf = '' 
 
     try:
@@ -519,51 +516,47 @@ def get_pdfkit_config():
         st.error(f"Error configuring wkhtmltopdf. Please ensure it is installed and the path is correct: {e}")
         st.info("If running locally, download wkhtmltopdf from https://wkhtmltopdf.org/downloads.html")
         st.info("If deploying on Streamlit Cloud, remember to add 'wkhtmltopdf' to packages.txt.")
-        st.stop() # Removed the extra `def` here, as this was likely the source of previous syntax error
-
+        st.stop()
 def generate_dashboard_html(df, filters):
-    """Generates the full HTML content of the dashboard for PDF conversion.""" 
+    """Generates the full HTML content of the dashboard for PDF conversion."""
     
-    # Inline CSS for the PDF report 
+    # Inline CSS for the PDF report
     inline_css = """
     <style>
-        body { font-family: sans-serif; margin: 20px; color: #333; } 
+        body { font-family: sans-serif; margin: 20px; color: #333; }
         .main-header {
-            background: linear-gradient(90deg, #1f77b4, #2ca02c); 
-            padding: 1rem; 
-            border-radius: 10px; 
-            margin-bottom: 2rem; 
-            color: white; 
-            text-align: center; 
-        } 
+            background: linear-gradient(90deg, #1f77b4, #2ca02c);
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            color: white;
+            text-align: center;
+        }
         .kpi-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-            padding: 1rem; 
-            border-radius: 10px; 
-            margin: 0.5rem; /* Adjust margin for HTML export */ 
-            color: white; 
-            text-align: center; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 0.5rem; /* Adjust margin for HTML export */
+            color: white;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             display: inline-block; /* For side-by-side cards in PDF */
-            width: 22%; 
-            /* Adjust width for 4 cards in a row */ 
-            vertical-align: top; 
+            width: 22%; /* Adjust width for 4 cards in a row */
+            vertical-align: top;
         }
         .kpi-value { font-size: 2rem; font-weight: bold; margin: 0.5rem 0; }
         .department-section {
-            border-left: 4px solid #1f77b4; 
-            padding-left: 1rem; 
-            margin: 1rem 0; 
-            background-color: #f8f9fa; 
-            border-radius: 0 10px 10px 0; 
+            border-left: 4px solid #1f77b4;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            background-color: #f8f9fa;
+            border-radius: 0 10px 10px 0;
         }
         table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: center;
-        vertical-align: middle; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; vertical-align: middle; }
         th { background-color: #f0f2f6; font-weight: bold; }
         .plotly-chart-img { max-width: 100%; height: auto; display: block; margin: 1rem auto; } /* Style for embedded chart images */
-        hr { border: 0;
-        height: 1px; background-color: #ddd; margin: 2rem 0; }
+        hr { border: 0; height: 1px; background-color: #ddd; margin: 2rem 0; }
     </style>
     """
 
@@ -591,13 +584,15 @@ def generate_dashboard_html(df, filters):
 
     report_df = apply_filters(df, filters)
 
-    if report_df.empty: 
-        html_content += "<p>No data available for selected filters.</p>" 
-        return html_content + "</body></html>" 
+    if report_df.empty:
+        html_content += "<p>No data available for selected filters.</p>"
+        return html_content + "</body></html>"
 
-    # Add summary cards to HTML for PDF 
+    # Add summary cards to HTML for PDF
     html_content += get_summary_cards_html_for_pdf(df, filters)
-    for dept in sorted(report_df['department'].dropna().unique()): 
+
+
+    for dept in sorted(report_df['department'].dropna().unique()):
         html_content += f"""
         <div class="department-section">
             <h2>🏢 {dept} Department</h2>
@@ -605,104 +600,105 @@ def generate_dashboard_html(df, filters):
         """
         dept_df = report_df[report_df['department'] == dept]
 
-        for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values: 
-            kpi_id, kpi_name, group_type = kpi_data 
-            kpi_df = dept_df[dept_df['kpi id'] == kpi_id] 
+        for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values:
+            kpi_id, kpi_name, group_type = kpi_data
+            kpi_df = dept_df[dept_df['kpi id'] == kpi_id]
 
-            if group_type == "sum": 
-                total_value = format_value(kpi_df['value'].sum(), group_type) 
+            if group_type == "sum":
+                total_value = format_value(kpi_df['value'].sum(), group_type)
             else:
-                total_value = format_value(kpi_df['value'].mean(), group_type) 
+                total_value = format_value(kpi_df['value'].mean(), group_type)
 
-            html_content += f"<h3>📊 {kpi_name} (Total: {total_value})</h3>" 
+            html_content += f"<h3>📊 {kpi_name} (Total: {total_value})</h3>"
 
-            # Create pivot table 
-            pivot_result = create_pivot_table(kpi_df, filters['report_type'], group_type) 
+            # Create pivot table
+            pivot_result = create_pivot_table(kpi_df, filters['report_type'], group_type)
 
-            if isinstance(pivot_result, list): # Two attributes case 
-                for attr1, attr1_total, pivot in pivot_result: 
-                    html_content += f"<h4>{attr1} (Total: {attr1_total})</h4>" 
-                    # Convert DataFrame to HTML table string 
-                    html_content += pivot.to_html(index=False, float_format=lambda x: f"{int(x)}" if group_type == 'sum' else f"{x:.1f}") 
-                    html_content += "<br>" 
+            if isinstance(pivot_result, list): # Two attributes case
+                for attr1, attr1_total, pivot in pivot_result:
+                    html_content += f"<h4>{attr1} (Total: {attr1_total})</h4>"
+                    # Convert DataFrame to HTML table string
+                    html_content += pivot.to_html(index=False, float_format=lambda x: f"{int(x)}" if group_type == 'sum' else f"{x:.1f}")
+                    html_content += "<br>"
             else: # Single or no attribute case
-                html_content += pivot_result.to_html(index=False, float_format=lambda x: f"{int(x)}" if group_type == 'sum' else f"{x:.1f}") 
-                html_content += "<br>" 
+                html_content += pivot_result.to_html(index=False, float_format=lambda x: f"{int(x)}" if group_type == 'sum' else f"{x:.1f}")
+                html_content += "<br>"
 
-            # Create chart figure and convert to base64 image for HTML 
-            fig_for_pdf = create_chart(kpi_df, kpi_name, group_type) 
-            if fig_for_pdf: 
-                # Requires kaleido package to export Plotly figures to image bytes 
-                img_bytes = fig_for_pdf.to_image(format="png", engine="kaleido") 
-                encoded_img = base64.b64encode(img_bytes).decode('utf-8') 
-                html_content += f'<img src="data:image/png;base64,{encoded_img}" class="plotly-chart-img">' 
+            # Create chart figure and convert to base64 image for HTML
+            fig_for_pdf = create_chart(kpi_df, kpi_name, group_type)
+            if fig_for_pdf:
+                # Requires kaleido package to export Plotly figures to image bytes
+                img_bytes = fig_for_pdf.to_image(format="png", engine="kaleido")
+                encoded_img = base64.b64encode(img_bytes).decode('utf-8')
+                html_content += f'<img src="data:image/png;base64,{encoded_img}" class="plotly-chart-img">'
             
-            html_content += "<hr>" # Separator for better readability 
+            html_content += "<hr>" # Separator for better readability
 
-    html_content += "</body></html>" 
+    html_content += "</body></html>"
     return html_content
 
 # Main application logic
-if uploaded_file: 
-    try: 
-        # Load and validate data 
-        df = pd.read_excel(uploaded_file) 
-        df = df.replace({np.nan: None}) 
+if uploaded_file:
+    try:
+        # Load and validate data
+        df = pd.read_excel(uploaded_file)
+        df = df.replace({np.nan: None})
         
         if not validate_data(df):
             st.stop()
         
-        # Clean data 
-        df['value'] = pd.to_numeric(df['value'], errors='coerce').fillna(0) 
-        df = df.dropna(subset=['kpi id', 'kpi name', 'department']) 
+        # Clean data
+        df['value'] = pd.to_numeric(df['value'], errors='coerce').fillna(0)
+        df = df.dropna(subset=['kpi id', 'kpi name', 'department'])
         
-        st.success(f"✅ Data loaded successfully! Found {len(df)} records with {df['kpi id'].nunique()} unique KPIs.") 
+        st.success(f"✅ Data loaded successfully! Found {len(df)} records with {df['kpi id'].nunique()} unique KPIs.")
         
         # Create tabs
-        tabs = st.tabs(["📊 Dashboard", "🔍 KPI Comparison"]) 
+        tabs = st.tabs(["📊 Dashboard", "🔍 KPI Comparison"])
         
-        with tabs[0]: 
-            # Dashboard tab 
-            st.header("📊 KPI Dashboard") 
+        with tabs[0]:
+            # Dashboard tab
+            st.header("📊 KPI Dashboard")
             
-            # Filter controls 
-            col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 2]) 
+            # Filter controls
+            col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 2])
             
-            with col1: 
-                report_type = st.selectbox("Report Type", ["Monthly", "Quarter", "Half Annual", "Annual"]) 
+            with col1:
+                report_type = st.selectbox("Report Type", ["Monthly", "Quarter", "Half Annual", "Annual"])
             
-            with col2: 
-                selected_year = st.selectbox("Year", sorted(df['year'].dropna().unique(), reverse=True)) 
+            with col2:
+                selected_year = st.selectbox("Year", sorted(df['year'].dropna().unique(), reverse=True))
             
-            with col5: 
-                departments = ["All Departments"] + sorted(df['department'].dropna().unique().tolist()) 
-                selected_department = st.selectbox("Department", departments) 
+            with col5:
+                departments = ["All Departments"] + sorted(df['department'].dropna().unique().tolist())
+                selected_department = st.selectbox("Department", departments)
             
-            # Dynamic filter based on report type 
-            selected_month = selected_quarter = selected_half = None 
+            # Dynamic filter based on report type
+            selected_month = selected_quarter = selected_half = None
             
-            if report_type == "Monthly": 
-                with col3: 
+            if report_type == "Monthly":
+                with col3:
                     available_months = sorted(df[df['year'] == selected_year]['month'].dropna().unique(),
-                                             key=lambda x: MONTH_ORDER.index(x) if x in MONTH_ORDER else 999) 
+                                              key=lambda x: MONTH_ORDER.index(x) if x in MONTH_ORDER else 999)
                     selected_month = st.selectbox("Month", available_months)
-            elif report_type == "Quarter": 
-                with col3: 
-                    available_quarters = sorted(df[df['year'] == selected_year]['quarter'].dropna().unique()) 
-                    selected_quarter = st.selectbox("Quarter", available_quarters) 
-            elif report_type == "Half Annual": 
-                with col3: 
-                    selected_half = st.selectbox("Half", ["H1", "H2"]) 
+            elif report_type == "Quarter":
+                with col3:
+                    available_quarters = sorted(df[df['year'] == selected_year]['quarter'].dropna().unique())
+                    selected_quarter = st.selectbox("Quarter", available_quarters)
+            elif report_type == "Half Annual":
+                with col3:
+                    selected_half = st.selectbox("Half", ["H1", "H2"])
             
-            # Create filters dictionary 
+            # Create filters dictionary
             filters = {
-                'report_type': report_type, 
-                'year': selected_year, 
-                'month': selected_month, 
-                'quarter': selected_quarter, 
-                'half': selected_half, 
-                'department': selected_department 
+                'report_type': report_type,
+                'year': selected_year,
+                'month': selected_month,
+                'quarter': selected_quarter,
+                'half': selected_half,
+                'department': selected_department
             }
+            
             # Use a session state variable to store if dashboard is generated
             if 'dashboard_generated' not in st.session_state:
                 st.session_state.dashboard_generated = False
@@ -720,9 +716,9 @@ if uploaded_file:
                     else:
                         st.success(f"📈 Dashboard generated with {len(report_df)} records")
                         
-                        # Display summary cards in Streamlit - COMMENTED OUT THIS CALL TO REMOVE FROM UI
-                        # display_summary_cards_streamlit(df, filters) 
-                    
+                        # Display summary cards in Streamlit
+                        display_summary_cards_streamlit(df, filters) 
+                        
                         # Department overview
                         for dept in sorted(report_df['department'].dropna().unique()):
                             with st.container():
@@ -749,7 +745,8 @@ if uploaded_file:
                                         # Create pivot table
                                         pivot_result = create_pivot_table(kpi_df, report_type, group_type)
                                         
-                                        if isinstance(pivot_result, list): # Two attributes case
+                                        if isinstance(pivot_result, list):
+                                            # Two attributes case
                                             for attr1, attr1_total, pivot in pivot_result:
                                                 st.markdown(f"**{attr1} (Total: {attr1_total})**")
                                                 
@@ -842,3 +839,4 @@ else:
     })
     
     st.dataframe(sample_data, use_container_width=True)
+

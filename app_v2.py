@@ -353,7 +353,7 @@ def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
             pivot = pd.pivot_table(
                 sub_df,
                 index='attribute 2',
-                values='value', [cite: 36]
+                values='value', 
                 aggfunc=aggfunc,
                 fill_value=0
             )
@@ -362,13 +362,13 @@ def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
         pivot = pivot.reset_index()
         
         # Format values [cite: 36]
-        for col in pivot.columns[1:]: [cite: 37]
+        for col in pivot.columns[1:]: 
             pivot[col] = pivot[col].apply(lambda x: format_value(x, group_type))
         
         # Calculate attribute total [cite: 37]
         attr1_total = format_value(sub_df['value'].sum() if group_type == 'sum' else sub_df['value'].mean(), group_type)
         
-        results.append((attr1, attr1_total, pivot)) [cite: 37]
+        results.append((attr1, attr1_total, pivot)) 
     
     return results
 
@@ -385,13 +385,13 @@ def create_single_attribute_pivot(kpi_df, attribute, report_type, aggfunc, group
         )
         # Reorder columns by month order [cite: 39]
         available_months = [m for m in MONTH_ORDER if m in pivot.columns]
-        pivot = pivot.reindex(columns=available_months) [cite: 39]
+        pivot = pivot.reindex(columns=available_months) 
         pivot['Total'] = pivot.sum(axis=1) if group_type == 'sum' else pivot.mean(axis=1)
     else:
         pivot = pd.pivot_table(
             kpi_df,
             index=attribute,
-            values='value', [cite: 40]
+            values='value', 
             aggfunc=aggfunc,
             fill_value=0
         )
@@ -400,13 +400,13 @@ def create_single_attribute_pivot(kpi_df, attribute, report_type, aggfunc, group
     pivot = pivot.reset_index()
     
     # Format values [cite: 40]
-    for col in pivot.columns[1:]: [cite: 40]
+    for col in pivot.columns[1:]: 
         pivot[col] = pivot[col].apply(lambda x: format_value(x, group_type))
     
     return pivot
 
-def create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type): [cite: 41]
-    """Handle no attribute pivot tables""" [cite: 41]
+def create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
+    """Handle no attribute pivot tables""" 
     if report_type != "Monthly":
         pivot = pd.pivot_table(
             kpi_df,
@@ -417,18 +417,18 @@ def create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type): [cite: 
         )
         # Reorder columns by month order [cite: 42]
         available_months = [m for m in MONTH_ORDER if m in pivot.columns]
-        pivot = pivot.reindex(columns=available_months) [cite: 42]
+        pivot = pivot.reindex(columns=available_months) 
         pivot['Total'] = pivot.sum() if group_type == 'sum' else pivot.mean()
         pivot = pd.DataFrame([pivot])
     else:
         total_value = kpi_df['value'].sum() if group_type == 'sum' else kpi_df['value'].mean()
         pivot = pd.DataFrame({'Total': [format_value(total_value, group_type)]})
     
-    return pivot [cite: 43]
+    return pivot 
 
 
 def create_chart(kpi_df, kpi_name, group_type):
-    """Create appropriate chart for KPI data and return Plotly figure object.""" [cite: 43]
+    """Create appropriate chart for KPI data and return Plotly figure object.""" 
     has_attr1 = kpi_df['attribute 1'].notna().any() and kpi_df['attribute 1'].ne("").any()
     has_attr2 = kpi_df['attribute 2'].notna().any() and kpi_df['attribute 2'].ne("").any()
     
@@ -439,14 +439,14 @@ def create_chart(kpi_df, kpi_name, group_type):
     if has_attr1 and has_attr2:
         chart_df = kpi_df.groupby(['attribute 1', 'attribute 2'])['value'].agg(aggfunc).reset_index()
         fig = px.bar(
-            chart_df, [cite: 44]
+            chart_df, 
             x='attribute 1',
             y='value',
             color='attribute 2',
             barmode='group',
             title=f"{kpi_name} by Attributes",
             labels={'value': 'KPI Value', 'attribute 1': 'Primary Attribute', 'attribute 2': 'Secondary Attribute'}
-        ) [cite: 45]
+        ) 
     elif has_attr1:
         chart_df = kpi_df.groupby('attribute 1')['value'].agg(aggfunc).reset_index()
         fig = px.bar(
@@ -454,7 +454,7 @@ def create_chart(kpi_df, kpi_name, group_type):
             x='attribute 1',
             y='value',
             title=f"{kpi_name} by Primary Attribute",
-            labels={'value': 'KPI Value', 'attribute 1': 'Primary Attribute'}, [cite: 46]
+            labels={'value': 'KPI Value', 'attribute 1': 'Primary Attribute'}, 
             color='value',
             color_continuous_scale='viridis'
         )
@@ -464,29 +464,29 @@ def create_chart(kpi_df, kpi_name, group_type):
             chart_df,
             x='attribute 2',
             y='value',
-            title=f"{kpi_name} by Secondary Attribute", [cite: 47]
+            title=f"{kpi_name} by Secondary Attribute", 
             labels={'value': 'KPI Value', 'attribute 2': 'Secondary Attribute'},
             color='value',
             color_continuous_scale='viridis'
         )
     else:
-        # Create time series chart [cite: 47]
+        # Create time series chart
         if len(kpi_df['month'].unique()) > 1:
-            monthly_data = kpi_df.groupby('month')['value'].agg(aggfunc).reset_index() [cite: 48]
+            monthly_data = kpi_df.groupby('month')['value'].agg(aggfunc).reset_index() 
             monthly_data['month_num'] = monthly_data['month'].map({month: i for i, month in enumerate(MONTH_ORDER, 1)})
             monthly_data = monthly_data.sort_values('month_num')
             
             fig = px.line(
                 monthly_data,
                 x='month',
-                y='value', [cite: 49]
+                y='value', 
                 title=f"{kpi_name} Trend",
                 markers=True,
                 labels={'value': 'KPI Value', 'month': 'Month'}
             )
         # No chart if only one month and no attributes [cite: 49]
     
-    if fig: [cite: 50]
+    if fig: 
         fig.update_layout(
             margin=dict(l=0, r=0, t=50, b=0),
             height=400,
@@ -499,17 +499,17 @@ def create_chart(kpi_df, kpi_name, group_type):
 
 @st.cache_resource # Cache the wkhtmltopdf configuration to avoid re-initializing
 def get_pdfkit_config():
-    """Configures pdfkit to find wkhtmltopdf executable.""" [cite: 51]
-    # IMPORTANT: Adjust this path based on your deployment environment! [cite: 51]
-    # For Windows local development: [cite: 52]
+    """Configures pdfkit to find wkhtmltopdf executable.""" 
+    # IMPORTANT: Adjust this path based on your deployment environment! 
+    # For Windows local development: 
     path_wkhtmltopdf = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe'
     
-    # For Linux deployments (e.g., Streamlit Cloud, Heroku) after installing wkhtmltopdf via apt or packages.txt [cite: 52]
-    if os.name == 'posix': # Check if running on Linux/macOS [cite: 52]
-        # On Streamlit Cloud (Debian/Ubuntu), it's typically /usr/bin/wkhtmltopdf [cite: 52]
+    # For Linux deployments (e.g., Streamlit Cloud, Heroku) after installing wkhtmltopdf via apt or packages.txt 
+    if os.name == 'posix': # Check if running on Linux/macOS 
+        # On Streamlit Cloud (Debian/Ubuntu), it's typically /usr/bin/wkhtmltopdf 
         path_wkhtmltopdf = '/usr/bin/wkhtmltopdf' 
-        # Sometimes '/usr/local/bin/wkhtmltopdf' might be used for manual installs, but apt puts it in /usr/bin [cite: 52]
-        # Or if it's in the system's PATH, you might be able to use an empty string: [cite: 53]
+        # Sometimes '/usr/local/bin/wkhtmltopdf' might be used for manual installs, but apt puts it in /usr/bin 
+        # Or if it's in the system's PATH, you might be able to use an empty string: 
         # path_wkhtmltopdf = '' 
 
     try:
@@ -522,28 +522,28 @@ def get_pdfkit_config():
         st.stop() # Removed the extra `def` here, as this was likely the source of previous syntax error
 
 def generate_dashboard_html(df, filters):
-    """Generates the full HTML content of the dashboard for PDF conversion.""" [cite: 54]
+    """Generates the full HTML content of the dashboard for PDF conversion.""" 
     
-    # Inline CSS for the PDF report [cite: 54]
+    # Inline CSS for the PDF report 
     inline_css = """
     <style>
-        body { font-family: sans-serif; margin: 20px; color: #333; } [cite: 55]
+        body { font-family: sans-serif; margin: 20px; color: #333; } 
         .main-header {
-            background: linear-gradient(90deg, #1f77b4, #2ca02c); [cite: 55]
-            padding: 1rem; [cite: 56]
-            border-radius: 10px; [cite: 56]
-            margin-bottom: 2rem; [cite: 56]
-            color: white; [cite: 56]
-            text-align: center; [cite: 56]
-        } [cite: 57]
+            background: linear-gradient(90deg, #1f77b4, #2ca02c); 
+            padding: 1rem; 
+            border-radius: 10px; 
+            margin-bottom: 2rem; 
+            color: white; 
+            text-align: center; 
+        } 
         .kpi-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); [cite: 57]
-            padding: 1rem; [cite: 58]
-            border-radius: 10px; [cite: 58]
-            margin: 0.5rem; /* Adjust margin for HTML export */ [cite: 58]
-            color: white; [cite: 59]
-            text-align: center; [cite: 59]
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); [cite: 59]
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            padding: 1rem; 
+            border-radius: 10px; 
+            margin: 0.5rem; /* Adjust margin for HTML export */ 
+            color: white; 
+            text-align: center; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
             display: inline-block; /* For side-by-side cards in PDF */ [cite: 59]
             width: 22%; [cite: 60]
             /* Adjust width for 4 cards in a row */ [cite: 60]

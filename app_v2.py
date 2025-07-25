@@ -618,7 +618,7 @@ def generate_dashboard_html(df, filters):
 
         for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values:
             kpi_id, kpi_name, group_type = kpi_data
-            kpi_df = dept_df[kpi_df['kpi id'] == kpi_id] # Changed to use dept_df in this filter
+            kpi_df = dept_df[dept_df['kpi id'] == kpi_id] # Fixed: Use dept_df to filter for kpi_id
 
             if group_type == "sum":
                 total_value = format_value(kpi_df['value'].sum(), group_type)
@@ -1132,11 +1132,6 @@ if uploaded_file:
                             # Add KPI Name column for chart
                             comparison_table_df['KPI Name'] = kpi_name_selected
                             comparison_table_df.rename(columns={'attribute 1': kpi_df_specific.columns[2].replace('attribute ', '')}, inplace=True) # Removed "Attribute " prefix
-
-                            # Format numerical columns
-                            for col in [report1_col_name, report2_col_name, 'Change']:
-                                if col in comparison_table_df.columns:
-                                    comparison_table_df[col] = comparison_table_df[col].apply(lambda x: format_value(x, group_type))
 
                             if not comparison_table_df.empty:
                                 kpi_data_displayed = True # Set flag to True if anything is displayed

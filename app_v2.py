@@ -333,7 +333,7 @@ def create_two_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
     """Handle two attribute pivot tables""" [cite: 32]
     results = []
     
-    for attr1 in sorted(kpi_df['attribute 1'].dropna().unique()): [cite: 33]
+    for attr1 in sorted(kpi_df['attribute 1'].dropna().unique()) [cite: 33]
         sub_df = kpi_df[kpi_df['attribute 1'] == attr1]
         
         if report_type != "Monthly":

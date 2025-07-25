@@ -4,11 +4,15 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
+import pdfkit # Import pdfkit
+import base64 # For encoding images in HTML
+import io # For handling image bytes
+import os # For temporary files
 
 # Page config
 st.set_page_config(page_title="Horus Hospital KPIs", layout="wide", initial_sidebar_state="expanded")
 
-# Enhanced CSS styling
+# Enhanced CSS styling (keep this as is)
 st.markdown("""
     <style>
         /* Main container styling */
@@ -133,7 +137,7 @@ st.markdown("""
 # Sidebar configuration
 st.sidebar.markdown("### 📁 Upload KPI Data")
 uploaded_file = st.sidebar.file_uploader(
-    "Upload your Excel file (.xlsx)", 
+    "Upload your Excel file (.xlsx)",
     type=["xlsx"],
     help="Upload an Excel file containing your KPI data"
 )
@@ -155,7 +159,7 @@ with st.sidebar.expander("📋 Required Excel Format", expanded=False):
     """)
 
 # Constants
-MONTH_ORDER = ["January", "February", "March", "April", "May", "June", 
+MONTH_ORDER = ["January", "February", "March", "April", "May", "June",
                "July", "August", "September", "October", "November", "December"]
 QUARTER_MONTHS = {
     'Q1': ['January', 'February', 'March'],
@@ -166,8 +170,8 @@ QUARTER_MONTHS = {
 
 def validate_data(df):
     """Validate uploaded data structure"""
-    required_columns = ['kpi id', 'kpi name', 'attribute 1', 'attribute 2', 
-                       'grouping criteria', 'value', 'month', 'quarter', 'year', 'department']
+    required_columns = ['kpi id', 'kpi name', 'attribute 1', 'attribute 2',
+                        'grouping criteria', 'value', 'month', 'quarter', 'year', 'department']
     missing_columns = [col for col in required_columns if col not in df.columns]
     
     if missing_columns:
@@ -192,45 +196,57 @@ def create_summary_cards(df, report_type, filters):
     filtered_df = apply_filters(df, filters)
     
     if filtered_df.empty:
-        return
+        return "" # Return empty string for HTML
     
     col1, col2, col3, col4 = st.columns(4)
     
+    # HTML for summary cards
+    summary_html = ""
+    
+    total_kpis = filtered_df['kpi id'].nunique()
+    summary_html += f"""
+        <div class="kpi-card">
+            <h4>📊 Total KPIs</h4>
+            <div class="kpi-value">{total_kpis}</div>
+        </div>
+    """
+    
+    total_departments = filtered_df['department'].nunique()
+    summary_html += f"""
+        <div class="kpi-card">
+            <h4>🏢 Departments</h4>
+            <div class="kpi-value">{total_departments}</div>
+        </div>
+    """
+    
+    avg_value = filtered_df['value'].mean()
+    summary_html += f"""
+        <div class="kpi-card">
+            <h4>📈 Avg Value</h4>
+            <div class="kpi-value">{format_value(avg_value, 'average')}</div>
+        </div>
+    """
+    
+    total_records = len(filtered_df)
+    summary_html += f"""
+        <div class="kpi-card">
+            <h4>📋 Records</h4>
+            <div class="kpi-value">{total_records}</div>
+        </div>
+    """
+    
+    # Display in Streamlit
     with col1:
-        total_kpis = filtered_df['kpi id'].nunique()
-        st.markdown(f"""
-            <div class="kpi-card">
-                <h4>📊 Total KPIs</h4>
-                <div class="kpi-value">{total_kpis}</div>
-            </div>
-        """, unsafe_allow_html=True)
-    
+        st.markdown(summary_html.split("</div>")[0] + "</div>", unsafe_allow_html=True)
     with col2:
-        total_departments = filtered_df['department'].nunique()
-        st.markdown(f"""
-            <div class="kpi-card">
-                <h4>🏢 Departments</h4>
-                <div class="kpi-value">{total_departments}</div>
-            </div>
-        """, unsafe_allow_html=True)
-    
+        st.markdown(summary_html.split("</div>")[1].split("</div>")[0] + "</div>", unsafe_allow_html=True)
     with col3:
-        avg_value = filtered_df['value'].mean()
-        st.markdown(f"""
-            <div class="kpi-card">
-                <h4>📈 Avg Value</h4>
-                <div class="kpi-value">{format_value(avg_value, 'average')}</div>
-            </div>
-        """, unsafe_allow_html=True)
-    
+        st.markdown(summary_html.split("</div>")[2].split("</div>")[0] + "</div>", unsafe_allow_html=True)
     with col4:
-        total_records = len(filtered_df)
-        st.markdown(f"""
-            <div class="kpi-card">
-                <h4>📋 Records</h4>
-                <div class="kpi-value">{total_records}</div>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(summary_html.split("</div>")[3].split("</div>")[0] + "</div>", unsafe_allow_html=True)
+
+    return f"""<div style="display:flex; justify-content:space-around;">{summary_html}</div>"""
+
 
 def apply_filters(df, filters):
     """Apply selected filters to dataframe"""
@@ -376,18 +392,20 @@ def create_no_attribute_pivot(kpi_df, report_type, aggfunc, group_type):
     return pivot
 
 def create_chart(kpi_df, kpi_name, group_type):
-    """Create appropriate chart for KPI data"""
+    """Create appropriate chart for KPI data and return as BytesIO (for PDF)"""
     has_attr1 = kpi_df['attribute 1'].notna().any() and kpi_df['attribute 1'].ne("").any()
     has_attr2 = kpi_df['attribute 2'].notna().any() and kpi_df['attribute 2'].ne("").any()
     
     aggfunc = 'sum' if group_type == 'sum' else 'mean'
     
+    fig = None # Initialize fig
+    
     if has_attr1 and has_attr2:
         chart_df = kpi_df.groupby(['attribute 1', 'attribute 2'])['value'].agg(aggfunc).reset_index()
         fig = px.bar(
-            chart_df, 
-            x='attribute 1', 
-            y='value', 
+            chart_df,
+            x='attribute 1',
+            y='value',
             color='attribute 2',
             barmode='group',
             title=f"{kpi_name} by Attributes",
@@ -396,8 +414,8 @@ def create_chart(kpi_df, kpi_name, group_type):
     elif has_attr1:
         chart_df = kpi_df.groupby('attribute 1')['value'].agg(aggfunc).reset_index()
         fig = px.bar(
-            chart_df, 
-            x='attribute 1', 
+            chart_df,
+            x='attribute 1',
             y='value',
             title=f"{kpi_name} by Primary Attribute",
             labels={'value': 'KPI Value', 'attribute 1': 'Primary Attribute'},
@@ -407,8 +425,8 @@ def create_chart(kpi_df, kpi_name, group_type):
     elif has_attr2:
         chart_df = kpi_df.groupby('attribute 2')['value'].agg(aggfunc).reset_index()
         fig = px.bar(
-            chart_df, 
-            x='attribute 2', 
+            chart_df,
+            x='attribute 2',
             y='value',
             title=f"{kpi_name} by Secondary Attribute",
             labels={'value': 'KPI Value', 'attribute 2': 'Secondary Attribute'},
@@ -423,24 +441,191 @@ def create_chart(kpi_df, kpi_name, group_type):
             monthly_data = monthly_data.sort_values('month_num')
             
             fig = px.line(
-                monthly_data, 
-                x='month', 
+                monthly_data,
+                x='month',
                 y='value',
                 title=f"{kpi_name} Trend",
                 markers=True,
                 labels={'value': 'KPI Value', 'month': 'Month'}
             )
         else:
-            return None
+            return None # No chart if only one month and no attributes
     
-    fig.update_layout(
-        margin=dict(l=0, r=0, t=50, b=0), 
-        height=400,
-        showlegend=True,
-        font=dict(size=12)
-    )
+    if fig:
+        fig.update_layout(
+            margin=dict(l=0, r=0, t=50, b=0),
+            height=400,
+            showlegend=True,
+            font=dict(size=12)
+        )
+        
+        # Save plotly figure to bytes and encode to base64
+        img_bytes = fig.to_image(format="png", engine="kaleido") # Requires kaleido package
+        encoded_img = base64.b64encode(img_bytes).decode('utf-8')
+        return f'<img src="data:image/png;base64,{encoded_img}" style="width:100%;">'
     
-    return fig
+    return None
+
+@st.cache_resource # Cache the wkhtmltopdf configuration
+def get_pdfkit_config():
+    # IMPORTANT: Adjust this path to where wkhtmltopdf.exe is installed on your system!
+    # For Windows:
+    path_wkhtmltopdf = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe'
+    # For Linux (e.g., if hosted on a server like Heroku or your own VM after apt-get install wkhtmltopdf):
+    # path_wkhtmltopdf = '/usr/local/bin/wkhtmltopdf' # Common path for Linux
+    # For macOS (e.g., after brew install wkhtmltopdf):
+    # path_wkhtmltopdf = '/usr/local/bin/wkhtmltopdf' # Common path for macOS
+    
+    # In some hosted environments, wkhtmltopdf might be directly in PATH, so you might just use ''
+    # path_wkhtmltopdf = '' 
+    
+    try:
+        config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
+        return config
+    except Exception as e:
+        st.error(f"Error configuring wkhtmltopdf. Please ensure it is installed and the path is correct: {e}")
+        st.info("If running locally, download it from https://wkhtmltopdf.org/downloads.html")
+        st.stop()
+
+
+def generate_dashboard_html(df, filters):
+    """Generates the full HTML content of the dashboard for PDF conversion."""
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Horus Hospital KPI Report</title>
+        <style>
+            /* Embed the CSS directly for PDF rendering */
+            body {{ font-family: sans-serif; margin: 20px; color: #333; }}
+            .main-header {{
+                background: linear-gradient(90deg, #1f77b4, #2ca02c);
+                padding: 1rem;
+                border-radius: 10px;
+                margin-bottom: 2rem;
+                color: white;
+                text-align: center;
+            }}
+            .kpi-card {{
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                padding: 1rem;
+                border-radius: 10px;
+                margin: 0.5rem; /* Adjust margin for HTML export */
+                color: white;
+                text-align: center;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                display: inline-block; /* For side-by-side cards in PDF */
+                width: 22%; /* Adjust width for 4 cards in a row */
+                vertical-align: top;
+            }}
+            .kpi-value {{ font-size: 2rem; font-weight: bold; margin: 0.5rem 0; }}
+            .department-section {{
+                border-left: 4px solid #1f77b4;
+                padding-left: 1rem;
+                margin: 1rem 0;
+                background-color: #f8f9fa;
+                border-radius: 0 10px 10px 0;
+            }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 1rem; }}
+            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: center; vertical-align: middle; }}
+            th {{ background-color: #f0f2f6; font-weight: bold; }}
+            .plotly-chart {{ width: 100%; height: 400px; }} /* Placeholder for chart images */
+        </style>
+    </head>
+    <body>
+        <div class="main-header">
+            <h1>🏥 Horus Hospital KPI Report</h1>
+            <p>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p>Filters: Year: {filters['year']}, Report Type: {filters['report_type']}
+            {f", Month: {filters['month']}" if filters['month'] else ""}
+            {f", Quarter: {filters['quarter']}" if filters['quarter'] else ""}
+            {f", Half: {filters['half']}" if filters['half'] else ""}
+            {f", Department: {filters['department']}" if filters['department'] else ""}
+            </p>
+        </div>
+    """
+
+    report_df = apply_filters(df, filters)
+
+    if report_df.empty:
+        html_content += "<p>No data available for selected filters.</p>"
+        return html_content + "</body></html>"
+
+    # Add summary cards to HTML
+    # We need to manually calculate and generate HTML for summary cards for PDF
+    summary_html_for_pdf = ""
+    total_kpis_pdf = report_df['kpi id'].nunique()
+    summary_html_for_pdf += f"""
+        <div class="kpi-card">
+            <h4>📊 Total KPIs</h4>
+            <div class="kpi-value">{total_kpis_pdf}</div>
+        </div>
+    """
+    total_departments_pdf = report_df['department'].nunique()
+    summary_html_for_pdf += f"""
+        <div class="kpi-card">
+            <h4>🏢 Departments</h4>
+            <div class="kpi-value">{total_departments_pdf}</div>
+        </div>
+    """
+    avg_value_pdf = report_df['value'].mean()
+    summary_html_for_pdf += f"""
+        <div class="kpi-card">
+            <h4>📈 Avg Value</h4>
+            <div class="kpi-value">{format_value(avg_value_pdf, 'average')}</div>
+        </div>
+    """
+    total_records_pdf = len(report_df)
+    summary_html_for_pdf += f"""
+        <div class="kpi-card">
+            <h4>📋 Records</h4>
+            <div class="kpi-value">{total_records_pdf}</div>
+        </div>
+    """
+    html_content += f"""<div style="display:flex; flex-wrap:wrap; justify-content:space-around; margin-bottom: 2rem;">{summary_html_for_pdf}</div>"""
+
+
+    for dept in sorted(report_df['department'].dropna().unique()):
+        html_content += f"""
+        <div class="department-section">
+            <h2>🏢 {dept} Department</h2>
+        </div>
+        """
+        dept_df = report_df[report_df['department'] == dept]
+
+        for kpi_data in dept_df[['kpi id', 'kpi name', 'grouping criteria']].drop_duplicates().values:
+            kpi_id, kpi_name, group_type = kpi_data
+            kpi_df = dept_df[dept_df['kpi id'] == kpi_id]
+
+            if group_type == "sum":
+                total_value = format_value(kpi_df['value'].sum(), group_type)
+            else:
+                total_value = format_value(kpi_df['value'].mean(), group_type)
+
+            html_content += f"<h3>📊 {kpi_name} (Total: {total_value})</h3>"
+
+            # Create pivot table
+            pivot_result = create_pivot_table(kpi_df, filters['report_type'], group_type)
+
+            if isinstance(pivot_result, list): # Two attributes case
+                for attr1, attr1_total, pivot in pivot_result:
+                    html_content += f"<h4>{attr1} (Total: {attr1_total})</h4>"
+                    html_content += pivot.to_html(index=False, float_format=lambda x: f"{int(x)}" if group_type == 'sum' else f"{x:.1f}")
+                    html_content += "<br>"
+            else: # Single or no attribute case
+                html_content += pivot_result.to_html(index=False, float_format=lambda x: f"{int(x)}" if group_type == 'sum' else f"{x:.1f}")
+                html_content += "<br>"
+
+            # Create chart (as base64 image string)
+            chart_html = create_chart(kpi_df, kpi_name, group_type)
+            if chart_html:
+                html_content += f'<div class="plotly-chart">{chart_html}</div>'
+            html_content += "<hr>" # Separator for better readability
+
+    html_content += "</body></html>"
+    return html_content
 
 # Main application logic
 if uploaded_file:
@@ -484,7 +669,7 @@ if uploaded_file:
             if report_type == "Monthly":
                 with col3:
                     available_months = sorted(df[df['year'] == selected_year]['month'].dropna().unique(),
-                                            key=lambda x: MONTH_ORDER.index(x) if x in MONTH_ORDER else 999)
+                                              key=lambda x: MONTH_ORDER.index(x) if x in MONTH_ORDER else 999)
                     selected_month = st.selectbox("Month", available_months)
             elif report_type == "Quarter":
                 with col3:
@@ -504,15 +689,25 @@ if uploaded_file:
                 'department': selected_department
             }
             
-            # Generate report button
-            if st.button("🔄 Generate Dashboard", type="primary"):
+            # Use a state variable to store if dashboard is generated
+            if 'dashboard_generated' not in st.session_state:
+                st.session_state.dashboard_generated = False
+            
+            generate_button = st.button("🔄 Generate Dashboard", type="primary")
+
+            if generate_button or st.session_state.dashboard_generated:
+                st.session_state.dashboard_generated = True # Mark as generated
                 with st.spinner("Generating dashboard..."):
                     report_df = apply_filters(df, filters)
                     
                     if report_df.empty:
                         st.warning("⚠️ No data available for selected filters.")
+                        st.session_state.dashboard_generated = False # Reset if no data
                     else:
                         st.success(f"📈 Dashboard generated with {len(report_df)} records")
+                        
+                        # Display summary cards
+                        create_summary_cards(df, report_type, filters) # This function now also displays cards in Streamlit
                         
                         # Department overview
                         for dept in sorted(report_df['department'].dropna().unique()):
@@ -530,7 +725,7 @@ if uploaded_file:
                                     kpi_id, kpi_name, group_type = kpi_data
                                     kpi_df = dept_df[dept_df['kpi id'] == kpi_id]
                                     
-                                    # Calculate total
+                                    # Calculate total for display
                                     if group_type == "sum":
                                         total_value = format_value(kpi_df['value'].sum(), group_type)
                                     else:
@@ -545,20 +740,18 @@ if uploaded_file:
                                             for attr1, attr1_total, pivot in pivot_result:
                                                 st.markdown(f"**{attr1} (Total: {attr1_total})**")
                                                 
-                                                # Configure column alignment
                                                 column_config = {}
                                                 for col in pivot.columns:
-                                                    if col != pivot.columns[0]:  # Not the first column (index)
+                                                    if col != pivot.columns[0]:
                                                         column_config[col] = st.column_config.NumberColumn(
-                                                            col,
-                                                            format="%d" if pivot[col].dtype == 'int64' else "%.1f"
+                                                            col, format="%d" if pivot[col].dtype == 'int64' else "%.1f"
                                                         )
                                                     else:
                                                         column_config[col] = st.column_config.TextColumn(col)
                                                 
                                                 st.dataframe(
-                                                    pivot, 
-                                                    use_container_width=True, 
+                                                    pivot,
+                                                    use_container_width=True,
                                                     hide_index=True,
                                                     column_config=column_config
                                                 )
@@ -566,26 +759,80 @@ if uploaded_file:
                                             # Single or no attribute case
                                             column_config = {}
                                             for col in pivot_result.columns:
-                                                if col != pivot_result.columns[0]:  # Not the first column (index)
+                                                if col != pivot_result.columns[0]:
                                                     column_config[col] = st.column_config.NumberColumn(
-                                                        col,
-                                                        format="%d" if pivot_result[col].dtype == 'int64' else "%.1f"
+                                                        col, format="%d" if pivot_result[col].dtype == 'int64' else "%.1f"
                                                     )
                                                 else:
                                                     column_config[col] = st.column_config.TextColumn(col)
                                             
                                             st.dataframe(
-                                                pivot_result, 
-                                                use_container_width=True, 
+                                                pivot_result,
+                                                use_container_width=True,
                                                 hide_index=True,
                                                 column_config=column_config
                                             )
                                         
-                                        # Create chart
-                                        fig = create_chart(kpi_df, kpi_name, group_type)
-                                        if fig:
-                                            st.plotly_chart(fig, use_container_width=True)
-        
+                                        # Create chart for Streamlit display
+                                        # Note: create_chart returns HTML for PDF, but Plotly figures can also be displayed directly
+                                        # For Streamlit display, we need the raw Plotly figure, not HTML.
+                                        # Let's adjust create_chart to return the fig object first, then convert it.
+                                        
+                                        # Temporarily recreate fig for Streamlit display if needed, or pass it directly
+                                        # This is a bit redundant but ensures both PDF and Streamlit get what they need.
+                                        has_attr1_chart = kpi_df['attribute 1'].notna().any() and kpi_df['attribute 1'].ne("").any()
+                                        has_attr2_chart = kpi_df['attribute 2'].notna().any() and kpi_df['attribute 2'].ne("").any()
+                                        
+                                        fig_to_display = None
+                                        if has_attr1_chart and has_attr2_chart:
+                                            chart_df = kpi_df.groupby(['attribute 1', 'attribute 2'])['value'].agg(aggfunc).reset_index()
+                                            fig_to_display = px.bar(chart_df, x='attribute 1', y='value', color='attribute 2', barmode='group', title=f"{kpi_name} by Attributes", labels={'value': 'KPI Value', 'attribute 1': 'Primary Attribute', 'attribute 2': 'Secondary Attribute'})
+                                        elif has_attr1_chart:
+                                            chart_df = kpi_df.groupby('attribute 1')['value'].agg(aggfunc).reset_index()
+                                            fig_to_display = px.bar(chart_df, x='attribute 1', y='value', title=f"{kpi_name} by Primary Attribute", labels={'value': 'KPI Value', 'attribute 1': 'Primary Attribute'}, color='value', color_continuous_scale='viridis')
+                                        elif has_attr2_chart:
+                                            chart_df = kpi_df.groupby('attribute 2')['value'].agg(aggfunc).reset_index()
+                                            fig_to_display = px.bar(chart_df, x='attribute 2', y='value', title=f"{kpi_name} by Secondary Attribute", labels={'value': 'KPI Value', 'attribute 2': 'Secondary Attribute'}, color='value', color_continuous_scale='viridis')
+                                        else:
+                                            if len(kpi_df['month'].unique()) > 1:
+                                                monthly_data = kpi_df.groupby('month')['value'].agg(aggfunc).reset_index()
+                                                monthly_data['month_num'] = monthly_data['month'].map({month: i for i, month in enumerate(MONTH_ORDER, 1)})
+                                                monthly_data = monthly_data.sort_values('month_num')
+                                                fig_to_display = px.line(monthly_data, x='month', y='value', title=f"{kpi_name} Trend", markers=True, labels={'value': 'KPI Value', 'month': 'Month'})
+                                        
+                                        if fig_to_display:
+                                            fig_to_display.update_layout(
+                                                margin=dict(l=0, r=0, t=50, b=0),
+                                                height=400,
+                                                showlegend=True,
+                                                font=dict(size=12)
+                                            )
+                                            st.plotly_chart(fig_to_display, use_container_width=True)
+                        
+                        # Add a download button for PDF report
+                        st.markdown("---") # Separator before download button
+                        st.subheader("⬇️ Download Report")
+                        
+                        pdf_html = generate_dashboard_html(df, filters)
+                        
+                        # Get pdfkit configuration
+                        wkhtmltopdf_config = get_pdfkit_config()
+                        
+                        try:
+                            # Generate PDF from HTML string
+                            pdf_bytes = pdfkit.from_string(pdf_html, False, configuration=wkhtmltopdf_config)
+                            
+                            st.download_button(
+                                label="Download Dashboard as PDF",
+                                data=pdf_bytes,
+                                file_name=f"Horus_Hospital_KPI_Report_{filters['year']}_{filters['report_type']}.pdf",
+                                mime="application/pdf",
+                                help="Download the currently displayed dashboard as a PDF file."
+                            )
+                        except Exception as e:
+                            st.error(f"Failed to generate PDF. Error: {e}")
+                            st.info("Please ensure wkhtmltopdf is correctly installed and configured. Check the console for more details.")
+
         with tabs[1]:
             st.header("🔍 KPI Comparison")
             st.info("🚧 KPI comparison tools coming soon!")

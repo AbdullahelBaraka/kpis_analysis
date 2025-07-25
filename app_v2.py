@@ -911,7 +911,7 @@ if uploaded_file:
                                 with st.container():
                                     st.markdown(f"""
                                         <div class="department-section">
-                                            <h3>🏢 {dept} Department</h3>
+                                            <h3>� {dept} Department</h3>
                                         </div>
                                     """, unsafe_allow_html=True)
                                     
@@ -1448,3 +1448,4 @@ else:
     })
     
     st.dataframe(sample_data, use_container_width=True)
+�

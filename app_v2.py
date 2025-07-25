@@ -1069,7 +1069,7 @@ if uploaded_file:
                                 for attr1_val in sorted(unique_attr1_values):
                                     # Filter for the current attribute 1 value for both reports
                                     sub_kpi_df_1_filtered = kpi_df_1_filtered[kpi_df_1_filtered['attribute 1'] == attr1_val]
-                                    sub_kpi_df_2_filtered = kpi_df_2_filtered[kpi_df_2_filtered['attribute 1'] == attr1_val]
+                                    sub_kpi_df_2_filtered = sub_kpi_df_2_filtered[sub_kpi_df_2_filtered['attribute 1'] == attr1_val] # Fixed: Filter `sub_kpi_df_2_filtered`
 
                                     # Group by attribute 2 for this attribute 1 value
                                     agg_df1 = sub_kpi_df_1_filtered.groupby('attribute 2')['value'].agg(group_type).reset_index().rename(columns={'value': report1_col_name})
@@ -1080,8 +1080,25 @@ if uploaded_file:
                                         continue # Skip to the next primary attribute value
 
                                     sub_comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 2', how='outer').fillna(0)
-                                    sub_comparison_table_df['Change'] = sub_comparison_table_df[report2_col_name] - sub_comparison_table_df[report1_col_name]
-                                    sub_comparison_table_df['% Change'] = (sub_comparison_table_df['Change'] / sub_comparison_table_df[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                                    
+                                    # Robust % Change Calculation for sub_comparison_table_df
+                                    change_values = sub_comparison_table_df[report2_col_name] - sub_comparison_table_df[report1_col_name]
+                                    report1_base_values = sub_comparison_table_df[report1_col_name]
+
+                                    # Initialize result series
+                                    pct_change_series = pd.Series(np.nan, index=sub_comparison_table_df.index)
+                                    # Case 1: Denominator is not zero
+                                    mask_nonzero = (report1_base_values != 0)
+                                    pct_change_series[mask_nonzero] = (change_values[mask_nonzero] / report1_base_values[mask_nonzero]) * 100
+                                    # Case 2: Denominator is zero
+                                    mask_zero = (report1_base_values == 0)
+                                    pct_change_series[mask_zero & (change_values == 0)] = 0.0 # 0/0 -> 0%
+                                    pct_change_series[mask_zero & (change_values != 0)] = np.nan # X/0 (X != 0) -> NaN
+
+                                    sub_comparison_table_df['Change'] = change_values
+                                    sub_comparison_table_df['% Change'] = pct_change_series.apply(
+                                        lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A"
+                                    )
                                     
                                     # Format numerical columns
                                     for col in [report1_col_name, report2_col_name, 'Change']:
@@ -1094,7 +1111,16 @@ if uploaded_file:
                                     sub_total_row_data[report1_col_name] = sub_comparison_table_df[report1_col_name].agg(group_type)
                                     sub_total_row_data[report2_col_name] = sub_comparison_table_df[report2_col_name].agg(group_type)
                                     sub_total_row_data['Change'] = sub_total_row_data[report2_col_name] - sub_total_row_data[report1_col_name]
-                                    sub_total_row_data['% Change'] = (sub_total_row_data['Change'] / sub_total_row_data[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                                    
+                                    # Calculate % Change for Total row
+                                    total_pct_change_val = (sub_total_row_data['Change'] / sub_total_row_data[report1_col_name]) * 100
+                                    if sub_total_row_data[report1_col_name] == 0:
+                                        if sub_total_row_data['Change'] == 0:
+                                            total_pct_change_val = 0.0
+                                        else:
+                                            total_pct_change_val = np.nan # Non-zero change from zero base
+                                            
+                                    sub_total_row_data['% Change'] = f"{total_pct_change_val:.1f}%" if pd.notna(total_pct_change_val) else "N/A"
                                     
                                     sub_total_row = pd.DataFrame([sub_total_row_data])
                                     sub_comparison_table_df = pd.concat([sub_comparison_table_df, sub_total_row], ignore_index=True)
@@ -1153,8 +1179,25 @@ if uploaded_file:
                                     continue # Skip to next KPI
 
                                 comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 1', how='outer').fillna(0)
-                                comparison_table_df['Change'] = comparison_table_df[report2_col_name] - comparison_table_df[report1_col_name]
-                                comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                                
+                                # Robust % Change Calculation for comparison_table_df
+                                change_values = comparison_table_df[report2_col_name] - comparison_table_df[report1_col_name]
+                                report1_base_values = comparison_table_df[report1_col_name]
+
+                                # Initialize result series
+                                pct_change_series = pd.Series(np.nan, index=comparison_table_df.index)
+                                # Case 1: Denominator is not zero
+                                mask_nonzero = (report1_base_values != 0)
+                                pct_change_series[mask_nonzero] = (change_values[mask_nonzero] / report1_base_values[mask_nonzero]) * 100
+                                # Case 2: Denominator is zero
+                                mask_zero = (report1_base_values == 0)
+                                pct_change_series[mask_zero & (change_values == 0)] = 0.0 # 0/0 -> 0%
+                                pct_change_series[mask_zero & (change_values != 0)] = np.nan # X/0 (X != 0) -> NaN
+
+                                comparison_table_df['Change'] = change_values
+                                comparison_table_df['% Change'] = pct_change_series.apply(
+                                    lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A"
+                                )
                                 
                                 attr1_col_name = kpi_df_specific_dept.columns[2].replace('attribute ', '')
                                 comparison_table_df.rename(columns={'attribute 1': attr1_col_name}, inplace=True) # Removed "Attribute " prefix
@@ -1165,7 +1208,16 @@ if uploaded_file:
                                 total_row_data[report1_col_name] = comparison_table_df[report1_col_name].agg(group_type)
                                 total_row_data[report2_col_name] = comparison_table_df[report2_col_name].agg(group_type)
                                 total_row_data['Change'] = total_row_data[report2_col_name] - total_row_data[report1_col_name]
-                                total_row_data['% Change'] = (total_row_data['Change'] / total_row_data[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+
+                                # Calculate % Change for Total row
+                                total_pct_change_val = (total_row_data['Change'] / total_row_data[report1_col_name]) * 100
+                                if total_row_data[report1_col_name] == 0:
+                                    if total_row_data['Change'] == 0:
+                                        total_pct_change_val = 0.0
+                                    else:
+                                        total_pct_change_val = np.nan # Non-zero change from zero base
+                                        
+                                total_row_data['% Change'] = f"{total_pct_change_val:.1f}%" if pd.notna(total_pct_change_val) else "N/A"
                                 
                                 total_row = pd.DataFrame([total_row_data])
                                 comparison_table_df = pd.concat([comparison_table_df, total_row], ignore_index=True)
@@ -1212,8 +1264,25 @@ if uploaded_file:
                                     continue # Skip to next KPI
 
                                 comparison_table_df = pd.merge(agg_df1, agg_df2, on='attribute 2', how='outer').fillna(0)
-                                comparison_table_df['Change'] = comparison_table_df[report2_col_name] - comparison_table_df[report1_col_name]
-                                comparison_table_df['% Change'] = (comparison_table_df['Change'] / comparison_table_df[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                                
+                                # Robust % Change Calculation for comparison_table_df
+                                change_values = comparison_table_df[report2_col_name] - comparison_table_df[report1_col_name]
+                                report1_base_values = comparison_table_df[report1_col_name]
+
+                                # Initialize result series
+                                pct_change_series = pd.Series(np.nan, index=comparison_table_df.index)
+                                # Case 1: Denominator is not zero
+                                mask_nonzero = (report1_base_values != 0)
+                                pct_change_series[mask_nonzero] = (change_values[mask_nonzero] / report1_base_values[mask_nonzero]) * 100
+                                # Case 2: Denominator is zero
+                                mask_zero = (report1_base_values == 0)
+                                pct_change_series[mask_zero & (change_values == 0)] = 0.0 # 0/0 -> 0%
+                                pct_change_series[mask_zero & (change_values != 0)] = np.nan # X/0 (X != 0) -> NaN
+
+                                comparison_table_df['Change'] = change_values
+                                comparison_table_df['% Change'] = pct_change_series.apply(
+                                    lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A"
+                                )
                                 
                                 attr2_col_name = kpi_df_specific_dept.columns[3].replace('attribute ', '')
                                 comparison_table_df.rename(columns={'attribute 2': attr2_col_name}, inplace=True) # Removed "Attribute " prefix
@@ -1224,7 +1293,16 @@ if uploaded_file:
                                 total_row_data[report1_col_name] = comparison_table_df[report1_col_name].agg(group_type)
                                 total_row_data[report2_col_name] = comparison_table_df[report2_col_name].agg(group_type)
                                 total_row_data['Change'] = total_row_data[report2_col_name] - total_row_data[report1_col_name]
-                                total_row_data['% Change'] = (total_row_data['Change'] / total_row_data[report1_col_name] * 100).replace([np.inf, -np.inf], np.nan).fillna(0).apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                                
+                                # Calculate % Change for Total row
+                                total_pct_change_val = (total_row_data['Change'] / total_row_data[report1_col_name]) * 100
+                                if total_row_data[report1_col_name] == 0:
+                                    if total_row_data['Change'] == 0:
+                                        total_pct_change_val = 0.0
+                                    else:
+                                        total_pct_change_val = np.nan # Non-zero change from zero base
+                                        
+                                total_row_data['% Change'] = f"{total_pct_change_val:.1f}%" if pd.notna(total_pct_change_val) else "N/A"
                                 
                                 total_row = pd.DataFrame([total_row_data])
                                 comparison_table_df = pd.concat([comparison_table_df, total_row], ignore_index=True)
@@ -1240,7 +1318,7 @@ if uploaded_file:
                                                                         var_name='Period', value_name='Value')
                                     fig_comp = px.bar(
                                         melted_df, 
-                                        x=melted_df.columns[0], # Use the renamed attribute column as x-axis
+                                        x=melted_df.columns[0], 
                                         y='Value', 
                                         color='Period', 
                                         barmode='group',

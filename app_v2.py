@@ -572,6 +572,11 @@ def generate_dashboard_html(df, filters):
             font-weight: bold;
             color: #333; /* Inherit or specify a color */
         }
+        /* New CSS to keep KPI sections together on a single page in PDF */
+        .kpi-section-for-pdf {
+            page-break-inside: avoid;
+            margin-bottom: 2rem; /* Add some space between KPI sections */
+        }
     </style>
     """
 
@@ -625,7 +630,11 @@ def generate_dashboard_html(df, filters):
             else:
                 total_value = format_value(kpi_df['value'].mean(), group_type)
 
-            html_content += f"<h3>📊 {kpi_name} (Total: {total_value})</h3>"
+            # Wrap each KPI section (heading, table, chart) in a div with page-break-inside: avoid
+            html_content += f"""
+            <div class="kpi-section-for-pdf">
+                <h3>📊 {kpi_name} (Total: {total_value})</h3>
+            """
 
             # Create pivot table
             pivot_result = create_pivot_table(kpi_df, filters['report_type'], group_type)
@@ -649,6 +658,7 @@ def generate_dashboard_html(df, filters):
                 html_content += f'<img src="data:image/png;base64,{encoded_img}" class="plotly-chart-img">'
             
             html_content += "<hr>" # Separator for better readability
+            html_content += "</div>" # Close kpi-section-for-pdf div
 
     html_content += "</body></html>"
     return html_content

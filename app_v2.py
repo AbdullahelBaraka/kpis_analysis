@@ -503,9 +503,10 @@ def get_pdfkit_config():
     
     # For Linux deployments (e.g., Streamlit Cloud, Heroku) after installing wkhtmltopdf via apt or packages.txt
     if os.name == 'posix': # Check if running on Linux/macOS
-        path_wkhtmltopdf = '/usr/local/bin/wkhtmltopdf' # Common path after manual install
-        # Or often just '/usr/bin/wkhtmltopdf' if installed via apt-get
-        # If it's in the system's PATH, you might be able to use an empty string:
+        # On Streamlit Cloud (Debian/Ubuntu), it's typically /usr/bin/wkhtmltopdf
+        path_wkhtmltopdf = '/usr/bin/wkhtmltopdf' 
+        # Sometimes '/usr/local/bin/wkhtmltopdf' might be used for manual installs, but apt puts it in /usr/bin
+        # Or if it's in the system's PATH, you might be able to use an empty string:
         # path_wkhtmltopdf = '' 
 
     try:
@@ -515,10 +516,7 @@ def get_pdfkit_config():
         st.error(f"Error configuring wkhtmltopdf. Please ensure it is installed and the path is correct: {e}")
         st.info("If running locally, download wkhtmltopdf from https://wkhtmltopdf.org/downloads.html")
         st.info("If deploying on Streamlit Cloud, remember to add 'wkhtmltopdf' to packages.txt.")
-        st.stop()
-
-
-def generate_dashboard_html(df, filters):
+        st.stop()def generate_dashboard_html(df, filters):
     """Generates the full HTML content of the dashboard for PDF conversion."""
     
     # Inline CSS for the PDF report
